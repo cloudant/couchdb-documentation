@@ -42,12 +42,13 @@ Server Administrators
     CouchDB is restarted, the passwords will be salted and encrypted. You may
     also use the HTTP interface to create administrator accounts; this way,
     you don't need to restart CouchDB, and there's no need to temporarily store
-    or transmit passwords in plaintext. The HTTP ``_config/admins`` endpoint
-    supports querying, deleting or creating new admin accounts:
+    or transmit passwords in plaintext. The HTTP
+    ``/_node/{node-name}/_config/admins`` endpoint supports querying, deleting
+    or creating new admin accounts:
 
     .. code-block:: http
 
-        GET /_config/admins HTTP/1.1
+        GET /_node/nonode@nohost/_config/admins HTTP/1.1
         Accept: application/json
         Host: localhost:5984
 
@@ -74,7 +75,7 @@ Server Administrators
 
     .. code-block:: http
 
-        PUT /_config/admins/architect?raw=true HTTP/1.1
+        PUT /_node/nonode@nohost/_config/admins/architect?raw=true HTTP/1.1
         Accept: application/json
         Content-Type: application/json
         Content-Length: 89
@@ -106,6 +107,21 @@ Server Administrators
 Authentication Configuration
 ============================
 
+.. config:section:: chttpd :: Clustered Authentication Configuration
+
+    .. config:option:: require_valid_user :: Force user authentication
+
+        When this option is set to ``true``, no requests are allowed from
+        anonymous users. Everyone must be authenticated. ::
+
+            [chttpd]
+            require_valid_user = false
+
+        .. note::
+            This setting only affects the clustered-port (5984 by default).
+            To make the same change for the node-local port (5986 by default),
+            set the ``[couch_httpd_auth]`` setting of the same name.
+
 .. config:section:: couch_httpd_auth :: Authentication Configuration
 
     .. config:option:: allow_persistent_cookies :: Persistent cookies
@@ -123,18 +139,6 @@ Authentication Configuration
             [couch_httpd_auth]
             auth_cache_size = 50
 
-    .. config:option:: authentication_db :: Users database
-
-        Specifies the name of the system database for storing CouchDB users. ::
-
-            [couch_httpd_auth]
-            authentication_db = _users
-
-        .. warning::
-            If you change the database name, do not forget to remove or clean
-            up the old database, since it will no longer be protected by
-            CouchDB.
-
     .. config:option:: authentication_redirect :: Default redirect for authentication requests
 
         Specifies the location for redirection on successful authentication if
@@ -143,6 +147,10 @@ Authentication Configuration
 
             [couch_httpd_auth]
             authentication_redirect = /_utils/session.html
+
+        .. note::
+            This setting affects both the clustered-port (5984 by default)
+            and the node-local port (5986 by default).
 
     .. config:option:: iterations :: PBKDF2 iterations count
 
@@ -175,7 +183,7 @@ Authentication Configuration
             [couch_httpd_auth]
             max_iterations = 100000
 
-    .. config:option:: proxy_use_secret :: Force proxy auth use secret token
+    .. config:option:: proxy_use_secret :: Force proxy auth to use secret token
 
         When this option is set to ``true``, the
         :option:`couch_httpd_auth/secret` option is required for
@@ -189,7 +197,7 @@ Authentication Configuration
         .. versionadded:: 1.4
 
         A comma-separated list of field names in user documents (in
-        :option:`couch_httpd_auth/authentication_db`) that can be read by any
+        :option:`couchdb/users_db_suffix`) that can be read by any
         user. If unset or not specified, authenticated users can only retrieve
         their own document. ::
 
@@ -211,6 +219,11 @@ Authentication Configuration
 
             [couch_httpd_auth]
             require_valid_user = false
+
+        .. warning::
+            This setting only affects the node-local port (5986 by default).
+            Most administrators want the ``[chttpd]`` setting of the same name
+            for clustered-port (5984) behaviour.
 
     .. config:option:: secret :: Authentication secret token
 
@@ -238,6 +251,10 @@ Authentication Configuration
             [couch_httpd_auth]
             users_db_public = false
 
+        .. note::
+            This setting affects both the clustered-port (5984 by default)
+            and the node-local port (5986 by default).
+
     .. config:option:: x_auth_roles :: Proxy Auth roles header
 
         The HTTP header name (``X-Auth-CouchDB-Roles`` by default) that
@@ -258,7 +275,7 @@ Authentication Configuration
         not ``true``. Used for :ref:`api/auth/proxy`. ::
 
             [couch_httpd_auth]
-            x_auth_roles = X-Auth-CouchDB-Token
+            x_auth_token = X-Auth-CouchDB-Token
 
     .. config:option:: x_auth_username :: Proxy Auth username header
 
@@ -267,71 +284,3 @@ Authentication Configuration
 
             [couch_httpd_auth]
             x_auth_username = X-Auth-CouchDB-UserName
-
-.. _config/couch_httpd_oauth:
-
-HTTP OAuth Configuration
-========================
-
-.. config:section:: couch_httpd_oauth :: HTTP OAuth Configuration
-
-    .. versionadded:: 1.2
-
-    .. config:option:: use_users_db
-
-    CouchDB is able to store OAuth credentials within user documents instead of
-    config file by using this option::
-
-        [couch_httpd_oauth]
-        use_users_db = true
-
-    If set to ``true``, OAuth token and consumer secrets will be looked up in
-    the :option:`authentication database <couch_httpd_auth/authentication_db>`.
-    These secrets are stored in a top level field named ``"oauth"`` in user
-    documents, as below.
-
-    .. code-block:: javascript
-
-        {
-            "_id": "org.couchdb.user:joe",
-            "type": "user",
-            "name": "joe",
-            "password_sha": "fe95df1ca59a9b567bdca5cbaf8412abd6e06121",
-            "salt": "4e170ffeb6f34daecfd814dfb4001a73"
-            "roles": ["foo", "bar"],
-            "oauth": {
-                "consumer_keys": {
-                    "consumerKey1": "key1Secret",
-                    "consumerKey2": "key2Secret"
-                },
-                "tokens": {
-                    "token1": "token1Secret",
-                    "token2": "token2Secret"
-                }
-            }
-        }
-
-.. _config/oauth:
-
-OAuth Configuration
-===================
-
-.. config:section:: oauth_* :: OAuth Configuration
-
-    To let users be authenticated by :ref:`api/auth/oauth` (:rfc:`5849`), three
-    special sections must be set up in the :ref:`configuration <config>` file:
-
-    #. The Consumer secret::
-
-           [oauth_consumer_secrets]
-           consumer1 = sekr1t
-
-    #. Token secrets::
-
-           [oauth_token_secrets]
-           token1 = tokensekr1t
-
-    #. A mapping from tokens to users::
-
-           [oauth_token_users]
-           token1 = couchdb_username

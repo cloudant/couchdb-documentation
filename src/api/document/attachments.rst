@@ -28,24 +28,25 @@
     :param db: Database name
     :param docid: Document ID
     :param attname: Attachment name
+
     :<header If-Match: Document's revision. Alternative to `rev` query
       parameter
     :<header If-None-Match: Attachment's base64 encoded MD5 binary digest.
       *Optional*
+
     :query string rev: Document's revision. *Optional*
+
     :>header Accept-Ranges: :ref:`Range request aware
       <api/doc/attachment/range>`. Used for attachments with
       :mimetype:`application/octet-stream` content type
     :>header Content-Encoding: Used compression codec. Available if
-      attachment's ``content_type`` is in :config:option:`list of compressiable
+      attachment's ``content_type`` is in :config:option:`list of compressible
       types <attachments/compressible_types>`
     :>header Content-Length: Attachment size. If compression codec was used,
       this value is about compressed size, not actual
-    :>header Content-MD5: Base64 encoded MD5 binary digest
     :>header ETag: Double quoted base64 encoded MD5 binary digest
+
     :code 200: Attachment exists
-    :code 304: Attachment wasn't modified if :header:`ETag` equals specified
-      :header:`If-None-Match` header
     :code 401: Read privilege required
     :code 404: Specified database, document or attachment was not found
 
@@ -65,7 +66,6 @@
         Cache-Control: must-revalidate
         Content-Encoding: gzip
         Content-Length: 100
-        Content-MD5: vVa/YgiE1+Gh0WfoFJAcSg==
         Content-Type: text/plain
         Date: Thu, 15 Aug 2013 12:42:42 GMT
         ETag: "vVa/YgiE1+Gh0WfoFJAcSg=="
@@ -83,25 +83,27 @@
     :param db: Database name
     :param docid: Document ID
     :param attname: Attachment name
+
     :<header If-Match: Document's revision. Alternative to `rev` query
       parameter
     :<header If-None-Match: Attachment's base64 encoded MD5 binary digest.
       *Optional*
+
     :query string rev: Document's revision. *Optional*
+
     :>header Accept-Ranges: :ref:`Range request aware
       <api/doc/attachment/range>`. Used for attachments with
       :mimetype:`application/octet-stream`
     :>header Content-Encoding: Used compression codec. Available if
-      attachment's ``content_type`` is in :config:option:`list of compressiable
+      attachment's ``content_type`` is in :config:option:`list of compressible
       types <attachments/compressible_types>`
     :>header Content-Length: Attachment size. If compression codec is used,
       this value is about compressed size, not actual
-    :>header Content-MD5: Base64 encoded MD5 binary digest
     :>header ETag: Double quoted base64 encoded MD5 binary digest
+
     :response: Stored content
+
     :code 200: Attachment exists
-    :code 304: Attachment wasn't modified if :header:`ETag` equals specified
-      :header:`If-None-Match` header
     :code 401: Read privilege required
     :code 404: Specified database, document or attachment was not found
 
@@ -109,10 +111,11 @@
     :synopsis: Adds an attachment of a document
 
     Uploads the supplied content as an attachment to the specified document.
-    The attachment name provided must be a URL encoded string. You must also
-    supply either the ``rev`` query argument or the :header:`If-Match` HTTP
-    header for validation, and the HTTP headers (to set the attachment content
-    type).
+    The attachment name provided must be a URL encoded string. You must supply
+    the Content-Type header, and for an existing document you must also supply
+    either the ``rev`` query argument or the :header:`If-Match` HTTP header. If
+    the revision is omitted, a new, otherwise empty document will be created
+    with the provided attachment, or a conflict will occur.
 
     If case when uploading an attachment using an existing attachment name,
     CouchDB will update the corresponding stored content of the database. Since
@@ -127,22 +130,19 @@
     :param db: Database name
     :param docid: Document ID
     :param attname: Attachment name
+
     :<header Content-Type: Attachment MIME type. *Required*
     :<header If-Match: Document revision. Alternative to `rev` query parameter
-    :query string rev: Document revision. *Required*
-    :>header Accept-Ranges: :ref:`Range request aware
-      <api/doc/attachment/range>`. Used for attachments with
-      :mimetype:`application/octet-stream`
-    :>header Content-Encoding: Used compression codec. Available if
-      attachment's ``content_type`` is in :config:option:`list of compressiable
-      types <attachments/compressible_types>`
-    :>header Content-Length: Attachment size. If compression codec is used,
-      this value is about compressed size, not actual
-    :>header Content-MD5: Base64 encoded MD5 binary digest
-    :>header ETag: Double quoted base64 encoded MD5 binary digest
+    :<header X-Couch-Full-Commit: Overrides server's
+      :config:option:`commit policy <couchdb/delayed_commits>`. Possible values
+      are: ``false`` and ``true``. *Optional*
+
+    :query string rev: Document revision. *Optional*
+
     :>json string id: Document ID
     :>json boolean ok: Operation status
     :>json string rev: Revision MVCC token
+
     :code 200: Attachment successfully removed
     :code 202: Request was accepted, but changes are not yet stored on disk
     :code 400: Invalid request body or parameters
@@ -190,9 +190,9 @@
 .. http:delete:: /{db}/{docid}/{attname}
     :synopsis: Deletes an attachment of a document
 
-    Deletes the attachment ``attachment`` of the specified ``doc``. You must
-    supply the ``rev`` query parameter or :header:`If-Match` with the current
-    revision to delete the attachment.
+    Deletes the attachment with filename ``{attname}`` of the specified ``doc``.
+    You must supply the ``rev`` query parameter or :header:`If-Match` with the
+    current revision to delete the attachment.
 
     .. note::
         Deleting an attachment updates the corresponding document revision.

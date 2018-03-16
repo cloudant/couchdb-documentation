@@ -120,24 +120,58 @@ explanation`_.
 .. _this tip for a possible workaround: http://erlang.org/pipermail/erlang-questions/2011-December/063119.html
 .. _this thread for a deeper explanation: http://erlang.org/pipermail/erlang-questions/2011-October/061971.html
 
-PAM and ulimit
---------------
+Maximum open file descriptors (ulimit)
+--------------------------------------
 
-Finally, most \*nix operating systems impose various resource limits on every
-process. If your system is set up to use the Pluggable Authentication Modules
-(`PAM`_) system, increasing this limit is straightforward. For example,
-creating a file named ``/etc/security/limits.d/100-couchdb.conf`` with the
-following contents will ensure that CouchDB can open enough file descriptors
-to service your increased maximum open databases and Erlang ports::
+Most \*nix operating systems impose various resource limits on every process.
+The method of increasing these limits varies, depending on your init system and
+particular OS release. The default value for many OSes is 1024 or 4096. On a
+system with many databases or many views, CouchDB can very rapidly hit this
+limit.
+
+If your system is set up to use the Pluggable Authentication Modules (`PAM`_)
+system (as is the case with nearly all modern Linuxes), increasing this limit
+is straightforward. For example, creating a file named
+``/etc/security/limits.d/100-couchdb.conf`` with the following contents will
+ensure that CouchDB can open up to 10000 file descriptors at once::
 
     #<domain>    <type>    <item>    <value>
-    couchdb      hard      nofile    4096
-    couchdb      soft      nofile    4096
+    couchdb      hard      nofile    10000
+    couchdb      soft      nofile    10000
+
+If you are using our Debian/Ubuntu sysvinit script (``/etc/init.d/couchdb``),
+you also need to raise the limits for the root user::
+
+    #<domain>    <type>    <item>    <value>
+    root         hard      nofile    10000
+    root         soft      nofile    10000
+
+You may also have to edit the ``/etc/pam.d/common-session`` and
+``/etc/pam.d/common-session-noninteractive`` files to add the line::
+
+    session required pam_limits.so
+
+if it is not already present.
+
+For systemd-based Linuxes (such as CentOS/RHEL 7, Ubuntu 16.04+, Debian 8
+or newer), assuming you are launching CouchDB from systemd, you must also
+override the upper limit by creating the file
+``/etc/systemd/system/<servicename>.d/override.conf`` with the following
+content::
+
+    [Service]
+    LimitNOFILE=#######
+
+and replacing the ``#######`` with the upper limit of file descriptors CouchDB
+is allowed to hold open at once.
 
 If your system does not use PAM, a `ulimit` command is usually available for
 use in a custom script to launch CouchDB with increased resource limits.
-If necessary, feel free to increase this limits as long as your hardware can
-handle the load.
+Typical syntax would be something like `ulimit -n 10000`.
+
+In general, modern UNIX-like systems can handle very large numbers of file
+handles per process (e.g. 100000) without problem. Don't be afraid to increase
+this limit on your system.
 
 .. _PAM: http://www.linux-pam.org/
 
@@ -159,7 +193,7 @@ involved in assembling JSON, doing the networking and decoding JSON.
 
 As of CouchDB 1.1.0, users often report lower write performance of documents
 compared to older releases. The main reason is that this release ships with
-the more recent version of the HTTP server library Mochiweb, which by default
+the more recent version of the HTTP server library MochiWeb, which by default
 sets the TCP socket option `SO_NODELAY`_ to false. This means that small data
 sent to the TCP socket, like the reply to a document write request (or reading
 a very small document), will not be sent immediately to the network - TCP will
@@ -189,10 +223,10 @@ revision which contains the ``_id`` and ``_rev`` fields as well as
 the `_deleted` flag. This revision will remain even after a `database
 compaction` so that the deletion can be replicated. Deleted documents, like
 non-deleted documents, can affect view build times, :method:`PUT` and
-:method:`DELETE` requests time and size of database on disk, since they
-increase the size of the B+Tree's. You can see the number of deleted documents
+:method:`DELETE` request times, and the size of the database since they
+increase the size of the B+Tree. You can see the number of deleted documents
 in :get:`database information </{db}>`. If your use case creates lots of
-deleted documents (for example, if you are storing short-term data like logfile
+deleted documents (for example, if you are storing short-term data like log
 entries, message queues, etc), you might want to periodically switch to a new
 database and delete the old one (once the entries in it have all expired).
 
@@ -230,11 +264,19 @@ that will occur giving you a quick response and when views will be updated
 which will take a long time. (A 10 million document database took about 10
 minutes to load into CouchDB but about 4 hours to do view generation).
 
+In a cluster, "stale" requests are serviced by a fixed set of shards in order
+to present users with consistent results between requests. This comes with an
+availability trade-off - the fixed set of shards might not be the most
+responsive / available within the cluster. If you don't need this kind of
+consistency (e.g. your indexes are relatively static), you can tell CouchDB to
+use any available replica by specifying ``stable=false&update=false`` instead of
+``stale=ok``, or ``stable=false&update=lazy`` instead of ``stale=update_after``.
+
 View information isn't replicated - it is rebuilt on each database so you
 can't do the view generation on a separate sever.
 
-Builtin Reduce Functions
-------------------------
+Built-In Reduce Functions
+-------------------------
 
 If you’re using a very simple view function that only performs a sum or count
 reduction, you can call native Erlang implementations of them by simply

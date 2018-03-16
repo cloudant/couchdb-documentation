@@ -17,9 +17,9 @@ Compaction
 ==========
 
 The `compaction` operation is the way to reduce disk space usage by removing
-unused and old data from database or view index files. This operation is a very
-similar to the `vacuum` (`SQLite`_ ex.) available for other database management
-systems.
+unused and old data from database or view index files. This operation is very
+similar to the `vacuum` (`SQLite`_ ex.) operation available for other database
+management systems.
 
 .. _SQLite: http://www.sqlite.org/lang_vacuum.html
 
@@ -103,7 +103,7 @@ information about it via :ref:`database information resource <api/db>`::
         "disk_size": 17703025,
         "doc_count": 5091,
         "doc_del_count": 0,
-        "instance_start_time": "1371660751878859",
+        "instance_start_time": "0",
         "purge_seq": 0,
         "update_seq": 76215
     }
@@ -112,7 +112,7 @@ Note that ``compaction_running`` field is ``true`` indicating that compaction
 is actually running. To track the compaction progress you may query the
 :get:`_active_tasks </_active_tasks>` resource::
 
-    curl http://localhost:5984/my_db
+    curl http://localhost:5984/_active_tasks
 
 .. code-block:: http
 
@@ -184,6 +184,6 @@ triggered based on various criteria. Automatic compaction is configured in
 CouchDB's :ref:`configuration files <config/intro>`.
 
 The :config:option:`daemons/compaction_daemon` is responsible for triggering
-the compaction. It is automatically started, but disabled by default.
+the compaction. It is enabled by default and automatically started.
 The criteria for triggering the compactions is configured in the
 :config:section:`compactions` section.

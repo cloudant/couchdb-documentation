@@ -21,7 +21,7 @@ JavaScript
 .. note::
     While every design function has access to all JavaScript objects, the table
     below describes appropriate usage cases. For example, you may use
-    :func:`emit` in :ref:`listfun`, but :func:`getRow` is not permitted
+    :func:`emit` in :ref:`mapfun`, but :func:`getRow` is not permitted
     during :ref:`mapfun`.
 
 +--------------------------------+---------------------------------------------+
@@ -96,7 +96,7 @@ modules and functions:
 
 .. data:: JSON
 
-    `JSON2 <https://git-wip-us.apache.org/repos/asf?p=couchdb.git;a=blob;f=share/server/json2.js>`_
+    `JSON2 <https://github.com/apache/couchdb/blob/master/share/server/json2.js>`_
     object.
 
 .. function:: isArray(obj)
@@ -219,7 +219,7 @@ modules and functions:
     Encodes `obj` to JSON string. This is an alias for the ``JSON.stringify``
     method.
 
-    :param obj: JSON encodable object
+    :param obj: JSON-encodable object
     :return: JSON string
 
 .. _commonjs:
@@ -266,7 +266,7 @@ The CommonJS module can be added to a design document, like so:
             }
         },
         "validate_doc_update": "function(newdoc, olddoc, userctx, secobj) {
-            user = require('lib/security').user(userctx, secobj);
+            user = require('views/lib/security').user(userctx, secobj);
             return user.is_admin();
         }"
         "_id": "_design/test"

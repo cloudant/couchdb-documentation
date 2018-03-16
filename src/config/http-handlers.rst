@@ -72,20 +72,6 @@ Global HTTP Handlers
             [httpd_global_handlers]
             _config = {couch_httpd_misc_handlers, handle_config_req}
 
-    .. config:option:: _log
-
-        ::
-
-            [httpd_global_handlers]
-            _log = {couch_httpd_misc_handlers, handle_log_req}
-
-        .. config:option:: _oauth
-
-        ::
-
-            [httpd_global_handlers]
-            _oauth = {couch_httpd_oauth, handle_oauth_req}
-
     .. config:option:: _replicate
 
         Provides an API to run
@@ -117,7 +103,7 @@ Global HTTP Handlers
 
     .. config:option:: _utils
 
-        The :ref:`_utils <api/server/utils>` handler serves `Futon`'s web
+        The :ref:`_utils <api/server/utils>` handler serves `Fauxton`'s web
         administration page::
 
             [httpd_global_handlers]
@@ -186,13 +172,6 @@ Database HTTP Handlers
 
             [httpd_db_handlers]
             _design = {couch_httpd_db, handle_design_req}
-
-    .. config:option:: _temp_view
-
-        ::
-
-            [httpd_db_handlers]
-            _temp_view = {couch_mrview_http, handle_temp_view_req}
 
     .. config:option:: _view_cleanup
 

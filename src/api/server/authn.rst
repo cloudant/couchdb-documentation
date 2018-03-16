@@ -180,12 +180,15 @@ To obtain the first token and thus authenticate a user for the first time, the
 .. http:get:: /_session
     :synopsis: Returns Cookie-based login user information
 
-    Returns complete information about authenticated user.
-    This information contains :ref:`userctx_object`, authentication method and
-    available ones and authentication database.
+    Returns information about the authenticated user, including a
+    :ref:`userctx_object`, the authentication method and database that were
+    used, and a list of configured authentication handlers on the server.
 
     :query boolean basic: Accept `Basic Auth` by requesting this resource.
       *Optional*.
+    :>json boolean ok: Operation status
+    :>json object userCtx: User context for the current user
+    :>json object info: Server authentication configuration
     :code 200: Successfully authenticated.
     :code 401: Username or password wasn't recognized.
 
@@ -215,7 +218,6 @@ To obtain the first token and thus authenticate a user for the first time, the
                 "authenticated": "cookie",
                 "authentication_db": "_users",
                 "authentication_handlers": [
-                    "oauth",
                     "cookie",
                     "default"
                 ]
@@ -232,10 +234,13 @@ To obtain the first token and thus authenticate a user for the first time, the
 .. http:delete:: /_session
     :synopsis: Logout Cookie-based user
 
-    Closes user's session.
+    Closes user's session by instructing the browser to clear the cookie. This
+    does not invalidate the session from the server's perspective, as there is
+    no way to do this because CouchDB cookies are stateless. This means calling
+    this endpoint is purely optional from a client perspective, and it does not
+    protect against theft of a session cookie.
 
     :code 200: Successfully close session.
-    :code 401: User wasn't authenticated.
 
     **Request**:
 
@@ -270,29 +275,30 @@ Proxy Authentication
 .. note::
     To use this authentication method make sure that the
     ``{couch_httpd_auth, proxy_authentication_handler}`` value in added to the
-    list of the active :config:option:`httpd/authentication_handlers`:
+    list of the active :config:option:`chttpd/authentication_handlers`:
 
     .. code-block:: ini
 
-        [httpd]
-        authentication_handlers = {couch_httpd_oauth, oauth_authentication_handler}, {couch_httpd_auth, cookie_authentication_handler}, {couch_httpd_auth, proxy_authentication_handler}, {couch_httpd_auth, default_authentication_handler}
+        [chttpd]
+        authentication_handlers = {chttpd_auth, cookie_authentication_handler}, {couch_httpd_auth, proxy_authentication_handler}, {chttpd_auth, default_authentication_handler}
 
 `Proxy authentication` is very useful in case your application already uses
 some external authentication service and you don't want to duplicate users and
 their roles in CouchDB.
 
 This authentication method allows creation of a :ref:`userctx_object` for
-remotely authenticated user. By default, the client just need to pass specific
-headers to CouchDB with related request:
+remotely authenticated user. By default, the client just needs to pass specific
+headers to CouchDB with related requests:
 
 - :config:option:`X-Auth-CouchDB-UserName <couch_httpd_auth/x_auth_username>`:
   username;
 - :config:option:`X-Auth-CouchDB-Roles <couch_httpd_auth/x_auth_roles>`:
-  list of user roles separated by a comma (``,``);
+  comma-separated (``,``) list of user roles;
 - :config:option:`X-Auth-CouchDB-Token <couch_httpd_auth/x_auth_token>`:
-  authentication token. Optional, but strongly recommended to
-  :config:option:`force token be required <couch_httpd_auth/proxy_use_secret>`
-  to prevent requests from untrusted sources.
+  authentication token. When
+  :config:option:`proxy_use_secret <couch_httpd_auth/proxy_use_secret>`
+  is set (which is strongly recommended!), this header provides the secret
+  token to prevent requests from untrusted sources.
 
 **Request**:
 
@@ -321,7 +327,6 @@ headers to CouchDB with related request:
             "authenticated": "proxy",
             "authentication_db": "_users",
             "authentication_handlers": [
-                "oauth",
                 "cookie",
                 "proxy",
                 "default"
@@ -339,106 +344,3 @@ headers to CouchDB with related request:
 
 Note that you don't need to request :ref:`session <api/auth/session>`
 to be authenticated by this method if all required HTTP headers are provided.
-
-.. _api/auth/oauth:
-
-OAuth Authentication
-====================
-
-CouchDB supports OAuth 1.0 authentication (:rfc:`5849`). OAuth provides a
-method for clients to access server resources  without sharing real credentials
-(username and password).
-
-First, :ref:`configure oauth <config/oauth>`, by setting consumer and token
-with their secrets and binding token to real CouchDB username.
-
-Probably, it's not good idea to work with plain curl, let use some scripting
-language like Python:
-
-.. code-block:: python
-
-    #!/usr/bin/env python2
-    from oauth import oauth # pip install oauth
-    import httplib
-
-    URL = 'http://localhost:5984/_session'
-    CONSUMER_KEY = 'consumer1'
-    CONSUMER_SECRET = 'sekr1t'
-    TOKEN = 'token1'
-    SECRET = 'tokensekr1t'
-
-    consumer = oauth.OAuthConsumer(CONSUMER_KEY, CONSUMER_SECRET)
-    token = oauth.OAuthToken(TOKEN, SECRET)
-    req = oauth.OAuthRequest.from_consumer_and_token(
-        consumer,
-        token=token,
-        http_method='GET',
-        http_url=URL,
-        parameters={}
-    )
-    req.sign_request(oauth.OAuthSignatureMethod_HMAC_SHA1(), consumer,token)
-
-    headers = req.to_header()
-    headers['Accept'] = 'application/json'
-
-    con = httplib.HTTPConnection('localhost', 5984)
-    con.request('GET', URL, headers=headers)
-    resp = con.getresponse()
-    print resp.read()
-
-or Ruby:
-
-.. code-block:: ruby
-
-    #!/usr/bin/env ruby
-
-    require 'oauth' # gem install oauth
-
-    URL = 'http://localhost:5984'
-    CONSUMER_KEY = 'consumer1'
-    CONSUMER_SECRET = 'sekr1t'
-    TOKEN = 'token1'
-    SECRET = 'tokensekr1t'
-
-    @consumer = OAuth::Consumer.new CONSUMER_KEY,
-                                    CONSUMER_SECRET,
-                                    {:site => URL}
-
-    @access_token = OAuth::AccessToken.new(@consumer, TOKEN, SECRET)
-
-    puts @access_token.get('/_session').body
-
-Both snippets produces similar request and response pair:
-
-.. code-block:: http
-
-    GET /_session HTTP/1.1
-    Host: localhost:5984
-    Accept: application/json
-    Authorization: OAuth realm="", oauth_nonce="81430018", oauth_timestamp="1374561749", oauth_consumer_key="consumer1", oauth_signature_method="HMAC-SHA1", oauth_version="1.0", oauth_token="token1", oauth_signature="o4FqJ8%2B9IzUpXH%2Bk4rgnv7L6eTY%3D"
-
-.. code-block:: http
-
-    HTTP/1.1 200 OK
-    Cache-Control : must-revalidate
-    Content-Length : 167
-    Content-Type : application/json
-    Date : Tue, 23 Jul 2013 06:51:15 GMT
-    Server: CouchDB (Erlang/OTP)
-
-    {
-        "ok": true,
-        "info": {
-            "authenticated": "oauth",
-            "authentication_db": "_users",
-            "authentication_handlers": ["oauth", "cookie", "default"]
-        },
-        "userCtx": {
-            "name": "couchdb_username",
-            "roles": []
-        }
-    }
-
-There we request the :ref:`_session <api/auth/session>` resource to ensure
-that authentication was successful and the target CouchDB username is correct.
-Change the target URL to request required resource.

@@ -362,8 +362,8 @@ The Replicator retrieves basic information both from Source and Target using
 :get:`/{db}` requests. The GET response MUST contain JSON objects with
 the following mandatory fields:
 
-- **instance_start_time** (*string*): Timestamp when the Database was
-  opened, expressed in *microseconds* since the epoch.
+- **instance_start_time** (*string*): Always ``"0"``. (Returned for legacy
+  reasons.)
 - **update_seq** (*number* / *string*): The current database Sequence ID.
 
 Any other fields are optional. The information that the Replicator needs
@@ -403,7 +403,7 @@ Get Source Information
             "disk_size": 79132913799,
             "doc_count": 41961,
             "doc_del_count": 3807,
-            "instance_start_time": "1380901070238216",
+            "instance_start_time": "0",
             "purge_seq": 0,
             "update_seq": 61772
         }
@@ -521,16 +521,15 @@ ID:
 - Source and Target URI and if Source or Target are local or remote Databases
 - If Target needed to be created
 - If Replication is Continuous
-- OAuth headers if any
 - Any custom headers
 - :ref:`Filter function <filterfun>` code if used
 - Changes Feed query parameters, if any
 
 .. note::
-    See `couch_replicator_utils.erl`_ for an example of a Replication ID generation
+    See `couch_replicator_ids.erl`_ for an example of a Replication ID generation
     implementation.
 
-    .. _couch_replicator_utils.erl: https://git-wip-us.apache.org/repos/asf?p=couchdb.git;a=blob;f=src/couch_replicator/src/couch_replicator_utils.erl;h=d7778db;hb=HEAD
+    .. _couch_replicator_ids.erl: https://github.com/apache/couchdb/blob/master/src/couch_replicator/src/couch_replicator_ids.erl
 
 Retrieve Replication Logs from Source and Target
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -617,7 +616,7 @@ The Replication Log SHOULD contain the following fields:
   - **docs_read** (*number*): Number of read documents
   - **docs_written** (*number*): Number of written documents
   - **end_last_seq** (*number*): Last processed Update Sequence ID
-  - **end_time** (*string*): Replication completion datetime in :rfc:`5322`
+  - **end_time** (*string*): Replication completion timestamp in :rfc:`5322`
     format
   - **missing_checked** (*number*): Number of checked revisions on Source
   - **missing_found** (*number*): Number of missing revisions found on Target
@@ -625,7 +624,7 @@ The Replication Log SHOULD contain the following fields:
   - **session_id** (*string*): Unique session ID. Commonly, a random UUID value
     is used. **Required**
   - **start_last_seq** (*number*): Start update Sequence ID
-  - **start_time** (*string*): Replication start datetime in :rfc:`5322` format
+  - **start_time** (*string*): Replication start timestamp in :rfc:`5322` format
 
 - **replication_id_version** (*number*): Replication protocol version. Defines
   Replication ID calculation algorithm, HTTP API calls and the others
@@ -1275,13 +1274,15 @@ Target one by one.
 
 .. note::
     Alternative Replicator implementations MAY use alternative ways to retrieve
-    Documents from Source. For instance, `PouchDB`_ doesn't uses Multipart API
-    and fetches only latest Document Revision with inline attachments as single
+    Documents from Source. For instance, `PouchDB`_ doesn't use the Multipart
+    API
+    and fetches only the latest Document Revision with inline attachments as a
+    single
     JSON object. While this is still valid CouchDB HTTP API usage, such
     solutions MAY require a different API implementation for non-CouchDB
     Peers.
 
-.. _PouchDB: https://github.com/daleharvey/pouchdb/blob/master/src/pouch.replicate.js
+.. _PouchDB: https://github.com/pouchdb/pouchdb/blob/master/packages/node_modules/pouchdb-replication/src/replicate.js
 
 Upload Batch of Changed Documents
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1564,7 +1565,7 @@ following mandatory fields:
       Server: CouchDB (Erlang/OTP)
 
       {
-          "instance_start_time": "1381218659871282",
+          "instance_start_time": "0",
           "ok": true
       }
 

@@ -18,7 +18,7 @@ Introduction to Replication
 
 One of CouchDB's strengths is the ability to synchronize two copies of the same
 database. This enables users to distribute data across several nodes or
-datacenters, but also to move data more closely to clients.
+data centers, but also to move data more closely to clients.
 
 Replication involves a source and a destination database, which can be on the
 same or on different CouchDB instances. The aim of the replication is that at
@@ -53,7 +53,7 @@ on the source will also be deleted on the target.
 
 A replication task will finish once it reaches the end of the changes feed. If
 its `continuous` property is set to true, it will wait for new changes to
-appear until the task is cancelled. Replication tasks also create checkpoint
+appear until the task is canceled. Replication tasks also create checkpoint
 documents on the destination to ensure that a restarted task can continue from
 where it stopped, for example after it has crashed.
 
@@ -73,13 +73,38 @@ B already exists in A and will wait for further changes.
 Controlling which Documents to Replicate
 ========================================
 
-There are two ways for controlling which documents are replicated, and which
-are skipped. *Local* documents are never replicated (see :ref:`api/local`).
+There are three options for controlling which documents are replicated,
+and which are skipped:
 
-Additionally, :ref:`filterfun` can be used in a replication (see
-:ref:`replication-settings`). The replication task will then evaluate
-the filter function for each document in the changes feed. The document will
-only be replicated if the filter returns `true`.
+1. Defining documents as being local.
+2. Using :ref:`selectorobj`.
+3. Using :ref:`filterfun`.
+
+Local documents are never replicated (see :ref:`api/local`).
+
+:ref:`selectorobj` can be included in a replication document (see
+:ref:`replication-settings`). A selector object contains a query expression
+that is used to test whether a document should be replicated.
+
+:ref:`filterfun` can be used in a replication (see
+:ref:`replication-settings`). The replication task evaluates
+the filter function for each document in the changes feed. The document is
+only replicated if the filter returns `true`.
+
+.. note::
+    Using a selector provides performance benefits when compared with using a
+    :ref:`filterfun`. You should use :ref:`selectorobj` where possible.
+
+.. note::
+    When using replication filters that depend on the document's content,
+    deleted documents may pose a problem, since the document passed to the
+    filter will not contain any of the document's content. This can be
+    resolved by adding a ``_deleted:true`` field to the document instead
+    of using the DELETE HTTP method, paired with the use of a
+    :ref:`validate document update <vdufun>` handler to ensure the fields
+    required for replication filters are always present. Take note, though,
+    that the deleted document will still contain all of its data (including
+    attachments)!
 
 Migrating Data to Clients
 =========================

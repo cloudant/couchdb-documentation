@@ -47,11 +47,11 @@ Base CouchDB Options
 
     .. config:option:: delayed_commits :: Delayed commits
 
-        When this config value as ``false`` the CouchDB provides guaranty of
-        `fsync` call before return :http:statuscode:`201` response on each
-        document saving. Setting this config value as ``true`` may raise some
-        overall performance with cost of losing durability - it's strongly not
-        recommended to do such in production::
+        When this config value is ``false`` the CouchDB provides a guarantee
+        that `fsync` will be called before returning a :http:statuscode:`201`
+        response on each document save. Setting this config value to ``true``
+        may improve performance, at cost of some durability. For production use
+        disabling this is strongly recommended::
 
             [couchdb]
             delayed_commits = false
@@ -105,19 +105,6 @@ Base CouchDB Options
             [couchdb]
             max_dbs_open = 100
 
-    .. config:option:: max_document_size :: Maximum document size
-
-        .. versionchanged:: 1.3 This option now actually works.
-
-        Defines a maximum size for JSON documents, in bytes. This limit does
-        not apply to attachments, since they are transferred as a stream of
-        chunks. If you set this to a small value, you might be unable to modify
-        configuration options, database security and other larger documents
-        until a larger value is restored by editing the configuration file. ::
-
-            [couchdb]
-            max_document_size = 4294967296 ; 4 GB
-
     .. config:option:: os_process_timeout :: External processes time limit
 
         If an external process, such as a query server or external process,
@@ -141,6 +128,19 @@ Base CouchDB Options
             uri_file = /var/run/couchdb/couchdb.uri
 
         .. _URI: http://en.wikipedia.org/wiki/URI
+
+   .. config:option:: users_db_suffix :: Users database suffix
+
+        Specifies the suffix (last component of a name) of the system database
+        for storing CouchDB users. ::
+
+            [couchdb]
+            users_db_suffix = _users
+
+        .. warning::
+            If you change the database name, do not forget to remove or clean
+            up the old database, since it will no longer be protected by
+            CouchDB.
 
     .. config:option:: util_driver_dir :: CouchDB binary utility drivers
 
@@ -182,7 +182,38 @@ Base CouchDB Options
         It is expected that the administrator has configured a load balancer
         in front of the CouchDB nodes in the cluster. This load balancer should
         use the /_up endpoint to determine whether or not to send HTTP requests
-        to any particular node. For HAProxy, the following config is appropriate ::
+        to any particular node. For HAProxy, the following config is
+        appropriate:
+
+        .. code-block:: none
 
           http-check disable-on-404
           option httpchk GET /_up
+
+    .. config:option:: max_document_size :: Limit maximum document body size
+
+        .. versionchanged:: 2.1.0
+
+        Limit maximum document body size. Size is calculated based on the
+        serialized Erlang representation of the JSON document body, because
+        that reflects more accurately the amount of storage consumed on disk.
+        In particular, this limit does not include attachments.
+
+        HTTP requests which create or update documents will fail with error
+        code 413 if one or more documents is larger than this configuration
+        value.
+
+        In case of `_update` handlers, document size is checked after the
+        transformation and right before being inserted into the database. ::
+
+            [couchdb]
+            max_document_size = 4294967296 ; 4 GB
+
+        .. warning::
+           Before version 2.1.0 this setting was implemented by simply checking
+           http request body sizes. For individual document updates via `PUT`
+           that approximation was close enough, however that is not the case
+           for `_bulk_docs` endpoint. After 2.1.0 a separate configuration
+           parameter was defined: :config:option:`httpd/max_http_request_size`,
+           which can be used to limit maximum http request sizes. After upgrade,
+           it is advisable to review those settings and adjust them accordingly.

@@ -12,9 +12,9 @@
 
 .. _install:
 
-============
-Installation
-============
+===============================
+Installation & First-Time Setup
+===============================
 
 .. toctree::
     :maxdepth: 2
@@ -23,3 +23,8 @@ Installation
     windows
     mac
     freebsd
+    docker
+    snap
+    setup
+    upgrading
+    troubleshooting

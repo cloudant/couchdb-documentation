@@ -83,10 +83,10 @@
     The :method:`COPY` (which is non-standard HTTP) copies an existing design
     document to a new or existing one.
 
-    .. note::
-        Copying a design document does automatically reconstruct the view
-        indexes. These will be recreated, as with other views, the first time
-        the new view is accessed.
+    Given that view indexes on disk are named after their MD5 hash of the
+    view definition, and that a `COPY` operation won't actually change
+    that definition, the copied views won't have to be reconstructed.
+    Both views will be served from the same index on disk.
 
     .. seealso::
         :copy:`/{db}/{docid}`
@@ -206,8 +206,8 @@ The response from :get:`/{db}/_design/{ddoc}/_info` contains
 * **language** (*string*): Language for the defined views
 * **purge_seq** (*number*): The purge sequence that has been processed
 * **signature** (*string*): MD5 signature of the views for the design document
-* **update_seq** (*number*): The update sequence of the corresponding database
-  that has been indexed
+* **update_seq** (*number* / *string*): The update sequence of the corresponding
+  database that has been indexed
 * **updater_running** (*boolean*): Indicates if the view is currently
   being updated
 * **waiting_clients** (*number*): Number of clients waiting on views from

@@ -13,7 +13,15 @@ specific language governing permissions and limitations under the License.
 
 -->
 
-{% extends "defindex.html" %}
+{% extends "layout.html" %}
+{% set title = _('Overview') %}
+{% block body %}
+  <h1>{{ docstitle|e }}</h1>
+  <p>
+    {{ _('Welcome! This is') }}
+    {% block description %}{{ _('the documentation for') }} {{ project|e }}
+    {{ release|e }}{% if last_updated %}, {{ _('last updated') }} {{ last_updated|e }}{% endif %}{% endblock %}.
+</p>
 {% block tables %}
 <h2>Meet CouchDB</h2>
 <table class="contentstable" align="center">
@@ -74,8 +82,7 @@ specific language governing permissions and limitations under the License.
           Tutorial
         </a>
         <br />
-        <span class="linkdescr">start using CouchDB with
-          <a href="{{ pathto("intro/futon") }}">Futon</a> and
+        <span class="linkdescr">start using CouchDB with <a href="{{ pathto("fauxton/index") }}">Fauxton</a> and
           <a href="{{ pathto("intro/curl") }}">cURL</a></span>
       </p>
       <p class="biglink">
@@ -85,13 +92,29 @@ specific language governing permissions and limitations under the License.
         <br />
         <span class="linkdescr">a short walk though the API</span>
       </p>
+      <p class="biglink">
+        <a class="biglink" href="{{ pathto("cluster/index") }}">
+          Clustering
+        </a>
+        <br />
+        <span class="linkdescr">setup and manage a cluster of nodes</span>
+      </p>
     <td width="50%">
       <p class="biglink">
-        <a class="biglink" href="{{ pathto("couchapp/views/intro") }}">
+        <a class="biglink" href="{{ pathto("ddocs/views/intro") }}">
           Guide to Views
         </a>
         <br />
-        <span class="linkdescr">how to query JSON documents</span>
+        <span class="linkdescr">how to query documents with MapReduce</span>
+      </p>
+      <p class="biglink">
+        <a class="biglink" href="{{ pathto("api/database/find") }}">
+          Mango Query Server
+        </a>
+        <br />
+        <span class="linkdescr">
+          simple JSON CouchDB queries without MapReduce
+        </span>
       </p>
       <p class="biglink">
         <a class="biglink" href="{{ pathto("replication/intro") }}">
@@ -103,7 +126,7 @@ specific language governing permissions and limitations under the License.
         </span>
       </p>
       <p class="biglink">
-        <a class="biglink" href="{{ pathto("couchapp/ddocs") }}">
+        <a class="biglink" href="{{ pathto("ddocs/ddocs") }}">
           Design Documents
         </a>
         <br />
@@ -162,14 +185,11 @@ specific language governing permissions and limitations under the License.
 
 <h2>Links</h2>
 <table class="contentstable" align="center"><tr>
-  <td width="50%">
-    <p class="biglink"><a class="biglink" href="{{ pathto("contents") }}">Documentation Contents</a></p>
-    <p class="biglink"><a class="biglink" href="{{ pathto("http-api") }}">HTTP API Index</a></p>
-    <p class="biglink"><a class="biglink" href="{{ pathto("contributing") }}">Contributing to this Documentation</a></p>
-  </td><td width="50%">
-    <p class="biglink"><a class="biglink" href="http://couchdb.org/">CouchDB Web site</a></p>
-    <p class="biglink"><a class="biglink" href="http://couchdb.org/#download">Download</a></p>
-    <p class="biglink"><a class="biglink" href="http://couchdb.org/#mailing-list">Mailing Lists</a></p>
+  <td>
+    <p class="biglink"><a class="biglink" href="http://couchdb.org/#download">Download CouchDB</a></p>
+    <p class="biglink"><a class="biglink" href="{{ pathto("http-api") }}">HTTP API Reference</a></p>
+    <p class="biglink"><a class="biglink" href="{{ pathto("config-ref") }}">Configuration Reference</a></p>
   </td></tr>
 </table>
+{% endblock %}
 {% endblock %}

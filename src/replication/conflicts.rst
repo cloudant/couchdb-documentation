@@ -74,7 +74,7 @@ The answer is simple: both versions exist on both sides!
     |   v2b   |                      |   v2b   |
     +---------+                      +---------+
 
-After all, this is not a filesystem, so there's no restriction that only one
+After all, this is not a file system, so there's no restriction that only one
 document can exist with the name /db/bob. These are just "conflicting" revisions
 under the same name.
 
@@ -143,51 +143,6 @@ and either:
 So when working in this mode, your application still has to be able to handle
 these conflicts and have a suitable retry strategy, but these conflicts never
 end up inside the database itself.
-
-Conflicts in batches
-====================
-
-There are two different ways that conflicts can end up in the database:
-
-- Conflicting changes made on different databases, which are replicated to each
-  other, as shown earlier.
-- Changes are written to the database using ``_bulk_docs`` and all_or_nothing,
-  which bypasses the 409 mechanism.
-
-The :ref:`_bulk_docs API <api/db/bulk_docs>` lets you submit multiple updates
-(and/or deletes) in a single HTTP POST. Normally, these are treated as
-independent updates; some in the batch may fail because the `_rev` is stale
-(just like a 409 from a PUT) whilst others are written successfully.
-The response from ``_bulk_docs`` lists the success/fail separately for each
-document in the batch.
-
-However there is another mode of working, whereby you specify
-``{"all_or_nothing":true}`` as part of the request. This is CouchDB's nearest
-equivalent of a "transaction", but it's not the same as a database transaction
-which can fail and roll back. Rather, it means that all of the changes in the
-request will be forcibly applied to the database, even if that introduces
-conflicts.
-
-So this gives you a way to introduce conflicts within a single database
-instance. If you choose to do this instead of PUT, it means you don't have to
-write any code for the possibility of getting a 409 response, because you will
-never get one. Rather, you have to deal with conflicts appearing later in the
-database, which is what you'd have to do in a multi-master application anyway.
-
-.. code-block:: http
-
-    POST /db/_bulk_docs
-
-.. code-block:: javascript
-
-    {
-        "all_or_nothing": true,
-        "docs": [
-            {"_id":"x", "_rev":"1-xxx", ...},
-            {"_id":"y", "_rev":"1-yyy", ...},
-            ...
-        ]
-    }
 
 Revision tree
 =============
@@ -408,7 +363,7 @@ but this currently isn't possible.
 
 Suggested algorithm to fetch a document with conflict resolution:
 
-#. Get document via ``GET docid?conflicts=true`` request;
+#. Get document via ``GET docid?conflicts=true`` request
 #. For each member in the ``_conflicts`` array call ``GET docid?rev=xxx``.
    If any errors occur at this stage, restart from step 1.
    (There could be a race where someone else has already resolved this conflict
@@ -432,10 +387,9 @@ And here is an example of this in Ruby using the low-level `RestClient`_:
     require 'json'
     DB="http://127.0.0.1:5984/conflict_test"
 
-    # Write multiple documents as all_or_nothing, can introduce conflicts
+    # Write multiple documents
     def writem(docs)
         JSON.parse(RestClient.post("#{DB}/_bulk_docs", {
-            "all_or_nothing" => true,
             "docs" => docs,
         }.to_json))
     end
@@ -501,8 +455,8 @@ automatically multi-master capable.
 You can see that it's straightforward enough when you know what you're doing.
 It's just that CouchDB doesn't currently provide a convenient HTTP API for
 "fetch all conflicting revisions", nor "PUT to supersede these N revisions", so
-you need to wrap these yourself. I also don't know of any client-side libraries
-which provide support for this.
+you need to wrap these yourself. At the time of writing, there are no known
+client-side libraries which provide support for this.
 
 Merging and revision history
 ============================
@@ -513,7 +467,7 @@ contains a list which is only ever appended to, then you can perform a union of
 the two list versions.
 
 Some merge strategies look at the changes made to an object, compared to its
-previous version. This is how git's merge function works.
+previous version. This is how Git's merge function works.
 
 For example, to merge Bob's business card versions v2a and v2b, you could look
 at the differences between v1 and v2b, and then apply these changes to v2a as
@@ -560,7 +514,7 @@ file so that it knows whether a file has changed since the last successful
 replication.
 
 In our example it has changed on both sides. Only one file called `bob.vcf`
-can exist within the filesystem. Unison solves the problem by simply ducking
+can exist within the file system. Unison solves the problem by simply ducking
 out: the user can choose to replace the remote version with the local version,
 or vice versa (both of which would lose data), but the default action is to
 leave both sides unchanged.
@@ -577,38 +531,38 @@ It's up to her to copy across one of the versions manually (under a different
 filename), merge the two, and then finally push the merged version to the other
 side.
 
-Note also that the original file (version v1) has been lost by this point.
-So it's not going to be known from inspection alone which of v2a and v2b has the
-most up-to-date E-mail address for Bob, and which has the most up-to-date mobile
-number. Alice has to remember which she entered last.
+Note also that the original file (version v1) has been lost at this point.
+So it's not going to be known from inspection alone whether v2a or v2b has the
+most up-to-date E-mail address for Bob, or which version has the most up-to-date
+mobile number. Alice has to remember which one she entered last.
 
 Git
 ---
 
-`Git`_ is a well-known distributed source control system. Like Unison, git deals
-with files. However, git considers the state of a whole set of files as a single
+`Git`_ is a well-known distributed source control system. Like Unison, Git deals
+with files. However, Git considers the state of a whole set of files as a single
 object, the "tree". Whenever you save an update, you create a "commit" which
 points to both the updated tree and the previous commit(s), which in turn point
 to the previous tree(s). You therefore have a full history of all the states of
-the files. This forms a branch, and a pointer is kept to the tip of the branch,
-from which you can work backwards to any previous state. The "pointer" is
-actually an SHA1 hash of the tip commit.
+the files. This history forms a branch, and a pointer is kept to the tip of the
+branch, from which you can work backwards to any previous state. The "pointer"
+is an SHA1 hash of the tip commit.
 
 .. _Git: http://git-scm.com/
 
 If you are replicating with one or more peers, a separate branch is made for
-each of the peers. For example, you might have::
+each of those peers. For example, you might have::
 
     master               -- my local branch
     remotes/foo/master   -- branch on peer 'foo'
     remotes/bar/master   -- branch on peer 'bar'
 
-In the normal way of working, replication is a "pull", importing changes from
+In the regular workflow, replication is a "pull", importing changes from
 a remote peer into the local repository. A "pull" does two things: first "fetch"
 the state of the peer into the remote tracking branch for that peer; and then
 attempt to "merge" those changes into the local branch.
 
-Now let's consider the business card. Alice has created a git repo containing
+Now let's consider the business card. Alice has created a Git repo containing
 ``bob.vcf``, and cloned it across to the other machine. The branches look like
 this, where ``AAAAAAAA`` is the SHA1 of the commit::
 
@@ -624,7 +578,7 @@ repo::
     master: BBBBBBBB                        master: CCCCCCCC
     remotes/laptop/master: AAAAAAAA         remotes/desktop/master: AAAAAAAA
 
-Now on the desktop she does ``git pull laptop``. Firstly, the remote objects
+Now on the desktop she does ``git pull laptop``. First, the remote objects
 are copied across into the local repo and the remote tracking branch is
 updated::
 
@@ -633,11 +587,11 @@ updated::
     remotes/laptop/master: CCCCCCCC         remotes/desktop/master: AAAAAAAA
 
 .. note::
-    repo still contains AAAAAAAA because commits BBBBBBBB and CCCCCCCC point to
-    it
+    The repo still contains AAAAAAAA because commits BBBBBBBB and CCCCCCCC
+    point to it.
 
-Then git will attempt to merge the changes in. It can do this because it knows
-the parent commit to ``CCCCCCCC`` is ``AAAAAAAA``, so it takes a diff between
+Then Git will attempt to merge the changes in. Knowing that
+the parent commit to ``CCCCCCCC`` is ``AAAAAAAA``, it takes a diff between
 ``AAAAAAAA`` and ``CCCCCCCC`` and tries to apply it to ``BBBBBBBB``.
 
 If this is successful, then you'll get a new version with a merge commit::
@@ -653,8 +607,8 @@ process occurs. The remote tracking branch is updated::
     master: DDDDDDDD                        master: CCCCCCCC
     remotes/laptop/master: CCCCCCCC         remotes/desktop/master: DDDDDDDD
 
-Then a merge takes place. This is a special-case: ``CCCCCCCC`` one of the parent
-commits of ``DDDDDDDD``, so the laptop can `fast forward` update from
+Then a merge takes place. This is a special case: ``CCCCCCCC`` is one of the
+parent commits of ``DDDDDDDD``, so the laptop can `fast forward` update from
 ``CCCCCCCC`` to ``DDDDDDDD`` directly without having to do any complex merging.
 This leaves the final state as::
 
@@ -665,15 +619,15 @@ This leaves the final state as::
 Now this is all and good, but you may wonder how this is relevant when thinking
 about CouchDB.
 
-Firstly, note what happens in the case when the merge algorithm fails.
+First, note what happens in the case when the merge algorithm fails.
 The changes are still propagated from the remote repo into the local one, and
-are available in the remote tracking branch; so unlike Unison, you know the data
-is protected. It's just that the local working copy may fail to update, or may
-diverge from the remote version. It's up to you to create and commit the
+are available in the remote tracking branch. So, unlike Unison, you know the
+data is protected. It's just that the local working copy may fail to update, or
+may diverge from the remote version. It's up to you to create and commit the
 combined version yourself, but you are guaranteed to have all the history you
 might need to do this.
 
-Note that whilst it's possible to build new merge algorithms into Git,
+Note that while it is possible to build new merge algorithms into Git,
 the standard ones are focused on line-based changes to source code. They don't
 work well for XML or JSON if it's presented without any line breaks.
 
@@ -690,13 +644,15 @@ some of which may be behind you, and some of which may be ahead of you
 Note that each peer is explicitly tracked, and therefore has to be explicitly
 created. If a peer becomes stale or is no longer needed, it's up to you to
 remove it from your configuration and delete the remote tracking branch.
-This is different to CouchDB, which doesn't keep any peer state in the database.
+This is different from CouchDB, which doesn't keep any peer state in the
+database.
 
-Another difference with git is that it maintains all history back to time
-zero - git compaction keeps diffs between all those versions in order to reduce
+Another difference between CouchDB and Git is that it maintains all history
+back to time
+zero - Git compaction keeps diffs between all those versions in order to reduce
 size, but CouchDB discards them. If you are constantly updating a document,
-the size of a git repo would grow forever. It is possible (with some effort)
-to use "history rewriting" to make git forget commits earlier than a particular
+the size of a Git repo would grow forever. It is possible (with some effort)
+to use "history rewriting" to make Git forget commits earlier than a particular
 one.
 
 .. _replication/conflicts/git:
@@ -741,11 +697,11 @@ useful characteristics:
    the new data, plus the revision ID of the previous.
 
 #. In addition to application data (``{"name": "Jason", "awesome": true}``),
-   every record stores the evolutionary timeline of all previous revision IDs
+   every record stores the evolutionary time line of all previous revision IDs
    leading up to itself.
 
    - Exercise: Take a moment of quiet reflection. Consider any two different
-     records, A and B. If A's revision ID appears in B's timeline, then B
+     records, A and B. If A's revision ID appears in B's time line, then B
      definitely evolved from A. Now consider Git's fast-forward merges.
      Do you hear that? That is the sound of your mind being blown.
 
@@ -753,14 +709,14 @@ useful characteristics:
    children. CouchDB has that too.
 
    - Exercise: Compare two different records, A and B. A's revision ID does not
-     appear in B's timeline; however, one revision ID, C, is in both A's and B's
-     timeline. Thus A didn't evolve from B. B didn't evolve from A. But rather,
-     A and B have a common ancestor C. In Git, that is a "fork." In CouchDB,
-     it's a "conflict."
+     appear in B's time line; however, one revision ID, C, is in both A's and
+     B's time line. Thus A didn't evolve from B. B didn't evolve from A. But
+     rather, A and B have a common ancestor C. In Git, that is a "fork." In
+     CouchDB, it's a "conflict."
 
-   - In Git, if both children go on to develop their timelines independently,
+   - In Git, if both children go on to develop their time lines independently,
      that's cool. Forks totally support that.
-   - In CouchDB, if both children go on to develop their timelines
+   - In CouchDB, if both children go on to develop their time lines
      independently, that cool too. Conflicts totally support that.
    - **Fun fact 3**: CouchDB "conflicts" do not correspond to Git "conflicts."
      A Couch conflict is a divergent revision history, what Git calls a "fork."
@@ -771,15 +727,15 @@ useful characteristics:
    has that too.
 
    - **In the data model, there is no merge.** The client simply marks one
-     timeline as deleted and continues to work with the only extant timeline.
+     time line as deleted and continues to work with the only extant time line.
    - **In the application, it feels like a merge.** Typically, the client merges
-     the *data* from each timeline in an application-specific way.
-     Then it writes the new data to the timeline. In Git, this is like copying
-     and pasting the changes from branch A into branch B, then commiting to
+     the *data* from each time line in an application-specific way.
+     Then it writes the new data to the time line. In Git, this is like copying
+     and pasting the changes from branch A into branch B, then committing to
      branch B and deleting branch A. The data was merged, but there was no
      `git merge`.
-   - These behaviors are different because, in Git, the timeline itself is
-     important; but in CouchDB, the data is important and the timeline is
+   - These behaviors are different because, in Git, the time line itself is
+     important; but in CouchDB, the data is important and the time line is
      incidental—it's just there to support replication. That is one reason why
      CouchDB's built-in revisioning is inappropriate for storing revision data
      like a wiki page.

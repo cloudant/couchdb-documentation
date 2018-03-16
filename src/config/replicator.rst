@@ -23,15 +23,51 @@ Replicator Database Configuration
 
 .. config:section:: replicator :: Replicator Database Configuration
 
-    .. versionadded:: 1.2
+    .. config:option:: max_jobs
 
-    .. config:option:: max_replication_retry_count
+        .. versionadded:: 2.1
 
-        Maximum replication retry count can be a non-negative integer or
-        "infinity"::
+        Number of actively running replications. Making this too high could
+        cause performance issues. Making it too low could mean replications
+        jobs might not have enough time to make progress before getting
+        unscheduled again. This parameter can be adjusted at runtime and will
+        take effect during next rescheduling cycle::
 
-            [replicator]
-            max_replication_retry_count = 10
+             [replicator]
+             max_jobs = 500
+
+    .. config:option:: interval
+
+        .. versionadded:: 2.1
+
+        Scheduling interval in milliseconds. During each reschedule cycle
+        scheduler might start or stop up to "max_churn" number of jobs::
+
+             [replicator]
+             interval = 60000
+
+    .. config:option:: max_churn
+
+        .. versionadded:: 2.1
+
+        Maximum number of replications to start and stop during rescheduling.
+        This parameter along with ``interval`` defines the rate of job
+        replacement. During startup, however a much larger number of jobs could
+        be started (up to ``max_jobs``) in a short period of time::
+
+             [replicator]
+             max_churn = 20
+
+    .. config:option:: update_docs
+
+        .. versionadded:: 2.1
+
+        When set to ``true`` replicator will update replication document with
+        error and triggered states. This approximates pre-2.1 replicator
+        behavior::
+
+             [replicator]
+             update_docs = false
 
     .. config:option:: worker_batch_size
 
@@ -67,10 +103,17 @@ Replicator Database Configuration
 
     .. config:option:: retries_per_request
 
-        If a request fails, the replicator will retry it up to N times::
+        .. versionchanged:: 2.1.1
+
+        If a request fails, the replicator will retry it up to N times. The
+        default value for N is 5 (before version 2.1.1 it was 10). The requests
+        are retried with a doubling exponential backoff starting at 0.25
+        seconds. So by default requests would be retried in 0.25, 0.5, 1, 2, 4
+        second intervals. When number of retires is exhausted, the whole
+        replication job is stopped and will retry again later::
 
             [replicator]
-            retries_per_request = 10
+            retries_per_request = 5
 
     .. config:option:: socket_options
 
@@ -140,8 +183,8 @@ Replicator Database Configuration
 
     .. config:option:: password
 
-        String containing the user's password. Only used if the private keyfile
-        is  password protected::
+        String containing the user's password. Only used if the private key file
+        is password protected::
 
             [replicator]
             password = somepassword

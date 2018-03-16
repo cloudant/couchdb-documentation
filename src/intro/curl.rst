@@ -36,12 +36,10 @@ clarity):
 
     {
         "couchdb": "Welcome",
-        "uuid": "85fb71bf700c17267fef77535820e371",
+        "version": "2.0.0",
         "vendor": {
-            "name": "The Apache Software Foundation",
-            "version": "1.4.0"
-        },
-        "version": "1.4.0"
+            "name": "The Apache Software Foundation"
+        }
     }
 
 .. note::
@@ -77,7 +75,7 @@ the return information formatted for clarity):
         "doc_del_count" : 0,
         "disk_format_version" : 5,
         "update_seq" : 0,
-        "instance_start_time" : "1306421773496000",
+        "instance_start_time" : "0",
         "disk_size" : 79
     }
 

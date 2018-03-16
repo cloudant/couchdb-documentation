@@ -28,20 +28,21 @@
     :<header Accept: - :mimetype:`application/json`
                      - :mimetype:`text/plain`
 
-    :query boolean conflicts: Includes `conflicts` information in response.
-      Ignored if `include_docs` isn't ``true``. Default is ``false``
-    :query boolean descending: Return the documents in descending by key order.
-      Default is ``false``
+    :query boolean conflicts: Include `conflicts` information in response.
+      Ignored if `include_docs` isn't ``true``. Default is ``false``.
+    :query boolean descending: Return the documents in descending order by key.
+      Default is ``false``.
     :query json endkey: Stop returning records when the specified key is
-      reached. *Optional*
+      reached.
     :query json end_key: Alias for `endkey` param
     :query string endkey_docid: Stop returning records when the specified
-      document ID is reached. Requires ``endkey`` to be specified for this to
-      have any effect. *Optional*
-    :query string end_key_doc_id: Alias for `endkey_docid` param
+      document ID is reached. Ignored if `endkey` is not set.
+    :query string end_key_doc_id: Alias for `endkey_docid`.
     :query boolean group: Group the results using the reduce function to a
-      group or single row. Default is ``false``
-    :query number group_level: Specify the group level to be used. *Optional*
+      group or single row. Implies `reduce` is ``true`` and the maximum
+      `group_level`. Default is ``false``.
+    :query number group_level: Specify the group level to be used. Implies
+      `group` is ``true``.
     :query boolean include_docs: Include the associated document with each row.
       Default is ``false``.
     :query boolean attachments: Include the Base64-encoded content of
@@ -53,45 +54,54 @@
       attachment is compressed. Ignored if `include_docs` isn't ``true``.
       Default is ``false``.
     :query boolean inclusive_end: Specifies whether the specified end key
-      should be included in the result. Default is ``true``
+      should be included in the result. Default is ``true``.
     :query json key: Return only documents that match the specified key.
-      *Optional*
     :query json-array keys: Return only documents where the key matches one of
-      the keys specified in the array. *Optional*
+      the keys specified in the array.
     :query number limit: Limit the number of the returned documents to the
-      specified number. *Optional*
-    :query boolean reduce: Use the reduction function. Default is ``true``
+      specified number.
+    :query boolean reduce: Use the reduction function. Default is ``true`` when
+      a reduce function is defined.
     :query number skip: Skip this number of records before starting to return
-      the results. Default is ``0``
+      the results. Default is ``0``.
+    :query boolean sorted: Sort returned rows (see :ref:`Sorting Returned Rows
+     <api/ddoc/view/sorting>`). Setting this to ``false`` offers a performance
+     boost. The `total_rows` and `offset` fields are not available when this
+     is set to ``false``. Default is ``true``.
+    :query boolean stable: Whether or not the view results should be returned
+     from a stable set of shards. Default is ``false``.
     :query string stale: Allow the results from a stale view to be used.
-      Supported values: ``ok`` and ``update_after``. *Optional*
+      Supported values: ``ok``, ``update_after`` and ``false``.
+      ``ok`` is equivalent to ``stable=true&update=false``.
+      ``update_after`` is equivalent to ``stable=true&update=lazy``.
+      ``false`` is equivalent to ``stable=false&update=true``.
     :query json startkey: Return records starting with the specified key.
-      *Optional*
-    :query json start_key: Alias for `startkey` param
+    :query json start_key: Alias for `startkey`.
     :query string startkey_docid: Return records starting with the specified
-      document ID. Requires ``startkey`` to be specified for this to have any
-      effect. *Optional*
+      document ID. Ignored if ``startkey`` is not set.
     :query string start_key_doc_id: Alias for `startkey_docid` param
-    :query boolean update_seq: Response includes an ``update_seq`` value
-      indicating which sequence id of the database the view reflects.
-      Default is ``false``
+    :query string update: Whether or not the view in question should be updated
+     prior to responding to the user. Supported values: ``true``, ``false``,
+     ``lazy``. Default is ``true``.
+    :query boolean update_seq: Whether to include in the response an
+      `update_seq` value indicating the sequence id of the database the view
+      reflects. Default is ``false``.
 
     :>header Content-Type: - :mimetype:`application/json`
                            - :mimetype:`text/plain; charset=utf-8`
     :>header ETag: Response signature
     :>header Transfer-Encoding: ``chunked``
 
-    :>json number offset: Offset where the document list started
+    :>json number offset: Offset where the document list started.
     :>json array rows: Array of view row objects. By default the information
-      returned contains only the document ID and revision
-    :>json number total_rows: Number of documents in the database/view
-    :>json number update_seq: Current update sequence for the database
+      returned contains only the document ID and revision.
+    :>json number total_rows: Number of documents in the database/view.
+    :>json object update_seq: Current update sequence for the database.
 
     :code 200: Request completed successfully
     :code 400: Invalid request
     :code 401: Read permission required
     :code 404: Specified database, design document or view is missed
-    :code 500: View function execution error
 
     **Request**:
 
@@ -137,6 +147,8 @@
 
 .. versionchanged:: 1.6.0 added ``attachments`` and ``att_encoding_info``
     parameters
+.. versionchanged:: 2.0.0 added ``sorted`` parameter
+.. versionchanged:: 2.1.0 added ``stable`` and ``update`` parameters
 
 .. warning::
     Using the ``attachments`` parameter to include attachments in view results
@@ -581,7 +593,7 @@ The sorting direction is applied before the filtering applied using the
 
 .. code-block:: http
 
-    GET http://couchdb:5984/recipes/_design/recipes/_view/by_ingredient?startkey=%22carrots%22&endkey=%22egg%22
+    GET http://couchdb:5984/recipes/_design/recipes/_view/by_ingredient?startkey=%22carrots%22&endkey=%22egg%22 HTTP/1.1
     Accept: application/json
 
 will operate correctly when listing all the matching entries between
@@ -637,9 +649,9 @@ regenerated and new order applied.
 Using Limits and Skipping Rows
 ==============================
 
-By default requestion views result returns all records for it. That's ok when
-they are small, but this may lead to problems when there are billions of them
-since the clients might have to read them all and consume all available memory.
+By default, views return all results. That's ok when the number of results is
+small, but this may lead to problems when there are billions results, since the
+client may have to read them all and consume all available memory.
 
 But it's possible to reduce output result rows by specifying ``limit`` query
 parameter. For example, retrieving the list of recipes using the ``by_title``
@@ -770,3 +782,266 @@ To omit some records you may use ``skip`` query parameter:
     Using ``limit`` and ``skip`` parameters is not recommended for results
     pagination. Read :ref:`pagination recipe <views/pagination>` why it's so
     and how to make it better.
+
+.. _api/ddoc/view/multiple_queries:
+
+Sending multiple queries to a view
+==================================
+
+.. versionadded:: 2.1+
+
+.. http:post:: /{db}/_design/{ddoc}/_view/{view}/queries
+    :synopsis: Returns results for the specified queries
+
+    Executes multiple specified view queries against the view function
+    from the specified design document.
+
+    :param db: Database name
+    :param ddoc: Design document name
+    :param view: View function name
+
+    :<header Content-Type: - :mimetype:`application/json`
+    :<header Accept: - :mimetype:`application/json`
+
+    :<json queries:  An array of query objects with fields for the
+        parameters of each individual view query to be executed. The field names
+        and their meaning are the same as the query parameters of a
+        regular :ref:`view request <api/ddoc/view>`.
+
+    :>header Content-Type: - :mimetype:`application/json`
+    :>header ETag: Response signature
+    :>header Transfer-Encoding: ``chunked``
+
+    :>json array results: An array of result objects - one for each query. Each
+        result object contains the same fields as the response to a regular
+        :ref:`view request <api/ddoc/view>`.
+
+    :code 200: Request completed successfully
+    :code 400: Invalid request
+    :code 401: Read permission required
+    :code 404: Specified database, design document or view is missed
+    :code 500: View function execution error
+
+**Request**:
+
+.. code-block:: http
+
+    POST /recipes/_design/recipes/_view/by_title/queries HTTP/1.1
+    Content-Type: application/json
+    Accept: application/json
+    Host: localhost:5984
+
+    {
+        "queries": [
+            {
+                "keys": [
+                    "meatballs",
+                    "spaghetti"
+                ]
+            },
+            {
+                "limit": 3,
+                "skip": 2
+            }
+        ]
+    }
+
+**Response**:
+
+.. code-block:: http
+
+    HTTP/1.1 200 OK
+    Cache-Control: must-revalidate
+    Content-Type: application/json
+    Date: Wed, 20 Dec 2016 11:17:07 GMT
+    ETag: "1H8RGBCK3ABY6ACDM7ZSC30QK"
+    Server: CouchDB (Erlang/OTP)
+    Transfer-Encoding: chunked
+
+    {
+        "results" : [
+            {
+                "offset": 0,
+                "rows": [
+                    {
+                        "id": "SpaghettiWithMeatballs",
+                        "key": "meatballs",
+                        "value": 1
+                    },
+                    {
+                        "id": "SpaghettiWithMeatballs",
+                        "key": "spaghetti",
+                        "value": 1
+                    },
+                    {
+                        "id": "SpaghettiWithMeatballs",
+                        "key": "tomato sauce",
+                        "value": 1
+                    }
+                ],
+                "total_rows": 3
+            },
+            {
+                "offset" : 2,
+                "rows" : [
+                    {
+                        "id" : "Adukiandorangecasserole-microwave",
+                        "key" : "Aduki and orange casserole - microwave",
+                        "value" : [
+                            null,
+                            "Aduki and orange casserole - microwave"
+                        ]
+                    },
+                    {
+                        "id" : "Aioli-garlicmayonnaise",
+                        "key" : "Aioli - garlic mayonnaise",
+                        "value" : [
+                            null,
+                            "Aioli - garlic mayonnaise"
+                        ]
+                    },
+                    {
+                        "id" : "Alabamapeanutchicken",
+                        "key" : "Alabama peanut chicken",
+                        "value" : [
+                            null,
+                            "Alabama peanut chicken"
+                        ]
+                    }
+                ],
+                "total_rows" : 2667
+            }
+        ]
+    }
+
+.. warning::
+    Using POST to /{db}/_design/{ddoc}/_view/{view} is still supported and
+    allows to get multiple query result to a view. This is described below.
+    However, this is not encouraged after using POST to
+    /{db}/_design/{ddoc}/_view/{view}/queries is introduced.
+
+.. http:post:: /{db}/_design/{ddoc}/_view/{view}
+    :synopsis: Returns results for the specified queries
+
+    Executes multiple specified view queries against the view function
+    from the specified design document.
+
+    :param db: Database name
+    :param ddoc: Design document name
+    :param view: View function name
+
+    :<header Content-Type: - :mimetype:`application/json`
+    :<header Accept: - :mimetype:`application/json`
+                     - :mimetype:`text/plain`
+
+    :query json queries: An array of query objects with fields for the
+        parameters of each individual view query to be executed. The field names
+        and their meaning are the same as the query parameters of a
+        regular :ref:`view request <api/ddoc/view>`.
+
+    :>header Content-Type: - :mimetype:`application/json`
+                           - :mimetype:`text/plain; charset=utf-8`
+    :>header ETag: Response signature
+    :>header Transfer-Encoding: ``chunked``
+
+    :>json array results: An array of result objects - one for each query. Each
+        result object contains the same fields as the response to a regular
+        :ref:`view request <api/ddoc/view>`.
+
+    :code 200: Request completed successfully
+    :code 400: Invalid request
+    :code 401: Read permission required
+    :code 404: Specified database, design document or view is missed
+    :code 500: View function execution error
+
+**Request**:
+
+.. code-block:: http
+
+    POST /recipes/_design/recipes/_view/by_title HTTP/1.1
+    Content-Type: application/json
+    Accept: application/json
+    Host: localhost:5984
+
+    {
+        "queries": [
+            {
+                "keys": [
+                    "meatballs",
+                    "spaghetti"
+                ]
+            },
+            {
+                "limit": 3,
+                "skip": 2
+            }
+        ]
+    }
+
+**Response**:
+
+.. code-block:: http
+
+    HTTP/1.1 200 OK
+    Cache-Control: must-revalidate
+    Content-Type: application/json
+    Date: Wed, 07 Sep 2016 11:17:07 GMT
+    ETag: "1H8RGBCK3ABY6ACDM7ZSC30QK"
+    Server: CouchDB (Erlang/OTP)
+    Transfer-Encoding: chunked
+
+    {
+        "results" : [
+            {
+                "offset": 0,
+                "rows": [
+                    {
+                        "id": "SpaghettiWithMeatballs",
+                        "key": "meatballs",
+                        "value": 1
+                    },
+                    {
+                        "id": "SpaghettiWithMeatballs",
+                        "key": "spaghetti",
+                        "value": 1
+                    },
+                    {
+                        "id": "SpaghettiWithMeatballs",
+                        "key": "tomato sauce",
+                        "value": 1
+                    }
+                ],
+                "total_rows": 3
+            },
+            {
+                "offset" : 2,
+                "rows" : [
+                    {
+                        "id" : "Adukiandorangecasserole-microwave",
+                        "key" : "Aduki and orange casserole - microwave",
+                        "value" : [
+                            null,
+                            "Aduki and orange casserole - microwave"
+                        ]
+                    },
+                    {
+                        "id" : "Aioli-garlicmayonnaise",
+                        "key" : "Aioli - garlic mayonnaise",
+                        "value" : [
+                            null,
+                            "Aioli - garlic mayonnaise"
+                        ]
+                    },
+                    {
+                        "id" : "Alabamapeanutchicken",
+                        "key" : "Alabama peanut chicken",
+                        "value" : [
+                            null,
+                            "Alabama peanut chicken"
+                        ]
+                    }
+                ],
+                "total_rows" : 2667
+            }
+        ]
+    }

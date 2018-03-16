@@ -72,6 +72,7 @@
     :param docid: Document ID
 
     :<header Accept: - :mimetype:`application/json`
+                     - :mimetype:`multipart/related`
                      - :mimetype:`multipart/mixed`
                      - :mimetype:`text/plain`
     :<header If-None-Match: Double quoted document's revision token
@@ -90,10 +91,10 @@
       conflicted revisions. Default is ``false``
     :query boolean latest: Forces retrieving latest "leaf" revision, no matter
       what `rev` was requested. Default is ``false``
-    :query boolean local_seq: Includes last update sequence number for the
+    :query boolean local_seq: Includes last update sequence for the
       document. Default is ``false``
     :query boolean meta: Acts same as specifying all `conflicts`,
-      `deleted_conflicts` and `open_revs` query parameters. Default is
+      `deleted_conflicts` and `revs_info` query parameters. Default is
       ``false``
     :query array open_revs: Retrieves documents of specified leaf revisions.
       Additionally, it accepts value as ``all`` to return all leaf revisions.
@@ -105,6 +106,7 @@
       document revisions. Default is ``false``
 
     :>header Content-Type: - :mimetype:`application/json`
+                           - :mimetype:`multipart/related`
                            - :mimetype:`multipart/mixed`
                            - :mimetype:`text/plain; charset=utf-8`
     :>header ETag: Double quoted document's revision token. Not available when
@@ -121,7 +123,7 @@
       requested with ``conflicts=true`` query parameter
     :>json array _deleted_conflicts: List of deleted conflicted revisions.
       Available if requested with ``deleted_conflicts=true`` query parameter
-    :>json number _local_seq: Document's sequence number in current database.
+    :>json string _local_seq: Document's update sequence in current database.
       Available if requested with ``local_seq=true`` query parameter
     :>json array _revs_info: List of objects with information about local
       revisions and their status. Available if requested with ``open_revs``
@@ -174,25 +176,43 @@
     revision of the existing document. Unlike the :post:`/{db}`, you must
     specify the document ID in the request URL.
 
+    When updating an existing document, the current document revision must be
+    included in the document (i.e. the request body), as the `rev` query
+    parameter, or in the `If-Match` request header.
+
     :param db: Database name
     :param docid: Document ID
+
     :<header Accept: - :mimetype:`application/json`
                      - :mimetype:`text/plain`
-    :<header Content-Type: :mimetype:`application/json`
+    :<header Content-Type: - :mimetype:`application/json`
+                           - :mimetype:`multipart/related`
     :<header If-Match: Document's revision. Alternative to `rev` query
-      parameter
+      parameter or document key. *Optional*
     :<header X-Couch-Full-Commit: Overrides server's
       :config:option:`commit policy <couchdb/delayed_commits>`. Possible values
       are: ``false`` and ``true``. *Optional*
+
+    :query string rev: Document's revision if updating an existing document.
+      Alternative to `If-Match` header or document key. *Optional*
     :query string batch: Stores document in :ref:`batch mode
-      <api/doc/batch-writes>` Possible values: ``ok``. *Optional*
+      <api/doc/batch-writes>`. Possible values: ``ok``. *Optional*
+    :query boolean new_edits: Prevents insertion of a :ref:`conflicting
+      document <replication/conflicts>`. Possible values: ``true`` (default)
+      and ``false``. If ``false``, a well-formed ``_rev`` must be included in
+      the document. ``new_edits=false`` is used by the replicator to insert
+      documents into the target database even if that leads to the creation
+      of conflicts. *Optional*
+
     :>header Content-Type: - :mimetype:`application/json`
                            - :mimetype:`text/plain; charset=utf-8`
+                           - :mimetype:`multipart/related`
     :>header ETag: Quoted document's new revision
     :>header Location: Document URI
     :>json string id: Document ID
     :>json boolean ok: Operation status
     :>json string rev: Revision MVCC token
+
     :code 201: Document created and stored on disk
     :code 202: Document data accepted, but not yet stored on disk
     :code 400: Invalid request body or parameters
@@ -323,7 +343,8 @@
     :synopsis: Copies the document within the same database
 
     The :method:`COPY` (which is non-standard HTTP) copies an existing
-    document to a new or existing document.
+    document to a new or existing document. Copying a document is only possible
+    within the same database.
 
     The source document is specified on the request line, with the
     :header:`Destination` header of the request specifying the target
@@ -333,7 +354,10 @@
     :param docid: Document ID
     :<header Accept: - :mimetype:`application/json`
                      - :mimetype:`text/plain`
-    :<header Destination: Destination document
+    :<header Destination: Destination document. Must contain the target
+      document ID, and optionally the target document revision, if copying to
+      an existing document.  See :ref:`Copying to an Existing Document
+      <copy_to_existing_document>`.
     :<header If-Match: Source document's revision. Alternative to `rev` query
       parameter
     :<header X-Couch-Full-Commit: Overrides server's
@@ -500,7 +524,7 @@ Retrieving Attachments Content
 ------------------------------
 
 It's possible to retrieve document with all attached files content by using
-``attachements=true`` query parameter:
+``attachments=true`` query parameter:
 
 **Request**:
 
@@ -601,8 +625,8 @@ query parameter:
 Efficient Multiple Attachments Retrieving
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As you had noted above, retrieving document with ``attachements=true`` returns
-large JSON object where all attachments are included.  While you document and
+As noted above, retrieving document with ``attachments=true`` returns a
+large JSON object with all attachments included.  When your document and
 files are smaller it's ok, but if you have attached something bigger like media
 files (audio/video), parsing such response might be very expensive.
 
@@ -995,8 +1019,8 @@ requested.
 Retrieving Deleted Documents
 ----------------------------
 
-CouchDB doesn't actually deletes documents via :delete:`/{db}/{docid}`.
-Instead of this, it leaves tombstone with very basic information about
+CouchDB doesn't actually delete documents via :delete:`/{db}/{docid}`.
+Instead, it leaves tombstone with very basic information about the
 document. If you just :get:`/{db}/{docid}` CouchDB returns :statuscode:`404`
 response:
 
@@ -1135,7 +1159,7 @@ or :header:`If-Match`:
 
     COPY /recipes/SpaghettiWithMeatballs HTTP/1.1
     Accept: application/json
-    Destination: http://localhost:5984/recipes_old/SpaghettiWithMeatballs_Original
+    Destination: SpaghettiWithMeatballs_Original
     If-Match: 1-917fa2381192822767f010b95b45325b
     Host: localhost:5984
 
@@ -1149,7 +1173,7 @@ or :header:`If-Match`:
     Content-Type: application/json
     Date: Wed, 14 Aug 2013 14:21:00 GMT
     ETag: "1-917fa2381192822767f010b95b45325b"
-    Location: http://localhost:5984/recipes_old/SpaghettiWithMeatballs_Original
+    Location: http://localhost:5984/recipes/SpaghettiWithMeatballs_Original
     Server: CouchDB (Erlang/OTP)
 
     {
@@ -1157,6 +1181,8 @@ or :header:`If-Match`:
         "ok": true,
         "rev": "1-917fa2381192822767f010b95b45325b"
     }
+
+.. _copy_to_existing_document:
 
 Copying to an Existing Document
 ===============================
@@ -1171,7 +1197,7 @@ for the target document by appending the ``rev`` parameter to the
 
     COPY /recipes/SpaghettiWithMeatballs?rev=8-6f5ad8db0f34af24a6e0984cd1a6cfb9 HTTP/1.1
     Accept: application/json
-    Destination: http://localhost:5984/recipes_old/SpaghettiWithMeatballs_Original?rev=1-917fa2381192822767f010b95b45325b
+    Destination: SpaghettiWithMeatballs_Original?rev=1-917fa2381192822767f010b95b45325b
     Host: localhost:5984
 
 **Response**:
@@ -1184,7 +1210,7 @@ for the target document by appending the ``rev`` parameter to the
     Content-Type: application/json
     Date: Wed, 14 Aug 2013 14:21:00 GMT
     ETag: "2-62e778c9ec09214dd685a981dcc24074""
-    Location: http://localhost:5984/recipes_old/SpaghettiWithMeatballs_Original
+    Location: http://localhost:5984/recipes/SpaghettiWithMeatballs_Original
     Server: CouchDB (Erlang/OTP)
 
     {

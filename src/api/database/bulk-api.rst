@@ -19,59 +19,14 @@
 .. http:get:: /{db}/_all_docs
     :synopsis: Returns a built-in view of all documents in this database
 
-    Returns a JSON structure of all of the documents in a given database.
-    The information is returned as a JSON structure containing meta
-    information about the return structure, including a list of all documents
-    and basic contents, consisting the ID, revision and key. The key is the
-    from the document's ``_id``.
+    Executes the built-in `_all_docs` :ref:`view <views>`, returning all of the
+    documents in the database.  With the exception of the URL parameters
+    (described below), this endpoint works identically to any other view. Refer
+    to the :ref:`view endpoint <api/ddoc/view>` documentation for a complete
+    description of the available query parameters and the format of the returned
+    data.
 
     :param db: Database name
-    :<header Accept: - :mimetype:`application/json`
-                     - :mimetype:`text/plain`
-    :query boolean conflicts: Includes `conflicts` information in response.
-      Ignored if `include_docs` isn't ``true``. Default is ``false``.
-    :query boolean descending: Return the documents in descending by key order.
-      Default is ``false``.
-    :query string endkey: Stop returning records when the specified key is
-      reached. *Optional*.
-    :query string end_key: Alias for `endkey` param.
-    :query string endkey_docid: Stop returning records when the specified
-      document ID is reached. *Optional*.
-    :query string end_key_doc_id: Alias for `endkey_docid` param.
-    :query boolean include_docs: Include the full content of the documents in
-      the return. Default is ``false``.
-    :query boolean inclusive_end: Specifies whether the specified end key
-      should be included in the result. Default is ``true``.
-    :query string key: Return only documents that match the specified key.
-      *Optional*.
-    :query string keys: Return only documents that match the specified keys.
-      *Optional*.
-    :query number limit: Limit the number of the returned documents to the
-      specified number. *Optional*.
-    :query number skip: Skip this number of records before starting to return
-      the results. Default is ``0``.
-    :query string stale: Allow the results from a stale view to be used,
-      without triggering a rebuild of all views within the encompassing design
-      doc. Supported values: ``ok`` and ``update_after``. *Optional*.
-    :query string startkey: Return records starting with the specified key.
-      *Optional*.
-    :query string start_key: Alias for `startkey` param.
-    :query string startkey_docid: Return records starting with the specified
-      document ID. *Optional*.
-    :query string start_key_doc_id: Alias for `startkey_docid` param.
-    :query boolean update_seq: Response includes an ``update_seq`` value
-      indicating which sequence id of the underlying database the view
-      reflects. Default is ``false``.
-    :>header Content-Type: - :mimetype:`application/json`
-                           - :mimetype:`text/plain; charset=utf-8`
-    :>header ETag: Response signature
-    :>json number offset: Offset where the document list started
-    :>json array rows: Array of view row objects. By default the information
-      returned contains only the document ID and revision.
-    :>json number total_rows: Number of documents in the database/view. Note
-      that this is not the number of rows returned in the actual query.
-    :>json number update_seq: Current update sequence for the database
-    :code 200: Request completed successfully
 
     **Request**:
 
@@ -143,8 +98,14 @@
     documents in a single request, in place of multiple :get:`/{db}/{docid}`
     requests.
 
-    The request body should contain a list of the keys to be returned as an
-    array to a ``keys`` object. For example:
+    :param db: Database name
+    :<header Content-Type: :mimetype:`application/json`
+    :<json array keys: Return only documents that match the specified keys.
+      *Optional*
+    :>header Content-Type: - :mimetype:`application/json`
+    :code 200: Request completed successfully
+
+    **Request**:
 
     .. code-block:: http
 
@@ -161,8 +122,7 @@
             ]
         }
 
-    The returned JSON is the all documents structure, but with only the
-    selected keys in the output:
+    **Response**:
 
     .. code-block:: javascript
 
@@ -186,6 +146,138 @@
             ],
             "offset" : 0
         }
+
+Sending multiple queries to a database
+======================================
+
+.. versionadded:: 2.1+
+
+.. http:post:: /{db}/_all_docs/queries
+    :synopsis: Returns results for the specified queries
+
+    Executes multiple specified built-in view queries of all documents in this
+    database. This enables you to request multiple queries in a single
+    request, in place of multiple :post:`/{db}/_all_docs` requests.
+
+    :param db: Database name
+
+    :<header Content-Type: - :mimetype:`application/json`
+    :<header Accept: - :mimetype:`application/json`
+
+    :<json queries: An array of query objects with fields for the
+        parameters of each individual view query to be executed. The field names
+        and their meaning are the same as the query parameters of a
+        regular :ref:`_all_docs request <api/db/all_docs>`.
+
+    :>header Content-Type: - :mimetype:`application/json`
+                           - :mimetype:`text/plain; charset=utf-8`
+    :>header ETag: Response signature
+    :>header Transfer-Encoding: ``chunked``
+
+    :>json array results: An array of result objects - one for each query. Each
+        result object contains the same fields as the response to a regular
+        :ref:`_all_docs request <api/db/all_docs>`.
+
+    :code 200: Request completed successfully
+    :code 400: Invalid request
+    :code 401: Read permission required
+    :code 404: Specified database is missed
+    :code 500: Query execution error
+
+**Request**:
+
+.. code-block:: http
+
+    POST /db/_all_docs/queries HTTP/1.1
+    Content-Type: application/json
+    Accept: application/json
+    Host: localhost:5984
+
+    {
+        "queries": [
+            {
+                "keys": [
+                    "meatballs",
+                    "spaghetti"
+                ]
+            },
+            {
+                "limit": 3,
+                "skip": 2
+            }
+        ]
+    }
+
+**Response**:
+
+.. code-block:: http
+
+    HTTP/1.1 200 OK
+    Cache-Control: must-revalidate
+    Content-Type: application/json
+    Date: Wed, 20 Dec 2017 11:17:07 GMT
+    ETag: "1H8RGBCK3ABY6ACDM7ZSC30QK"
+    Server: CouchDB (Erlang/OTP)
+    Transfer-Encoding: chunked
+
+    {
+        "results" : [
+            {
+                "rows": [
+                    {
+                        "id": "SpaghettiWithMeatballs",
+                        "key": "meatballs",
+                        "value": 1
+                    },
+                    {
+                        "id": "SpaghettiWithMeatballs",
+                        "key": "spaghetti",
+                        "value": 1
+                    },
+                    {
+                        "id": "SpaghettiWithMeatballs",
+                        "key": "tomato sauce",
+                        "value": 1
+                    }
+                ],
+                "total_rows": 3
+            },
+            {
+                "offset" : 2,
+                "rows" : [
+                    {
+                        "id" : "Adukiandorangecasserole-microwave",
+                        "key" : "Aduki and orange casserole - microwave",
+                        "value" : [
+                            null,
+                            "Aduki and orange casserole - microwave"
+                        ]
+                    },
+                    {
+                        "id" : "Aioli-garlicmayonnaise",
+                        "key" : "Aioli - garlic mayonnaise",
+                        "value" : [
+                            null,
+                            "Aioli - garlic mayonnaise"
+                        ]
+                    },
+                    {
+                        "id" : "Alabamapeanutchicken",
+                        "key" : "Alabama peanut chicken",
+                        "value" : [
+                            null,
+                            "Alabama peanut chicken"
+                        ]
+                    }
+                ],
+                "total_rows" : 2667
+            }
+        ]
+    }
+
+.. Note::
+    The multiple queries are also supported in /db/_local_docs/queries and
+    /db/_design_docs/queries (similar to /db/_all_docs/queries).
 
 .. _api/db/bulk_docs:
 
@@ -217,9 +309,6 @@
     :<header X-Couch-Full-Commit: Overrides server's
       :config:option:`commit policy <couchdb/delayed_commits>`. Possible values
       are: ``false`` and ``true``. *Optional*
-    :<json boolean all_or_nothing: Sets the database commit mode to use
-      :ref:`all-or-nothing <api/db/bulk_docs/semantics>` semantics.
-      Default is ``false``. *Optional*
     :<json array docs: List of documents objects
     :<json boolean new_edits: If ``false``, prevents the database from
       assigning them new revision IDs. Default is ``true``. *Optional*
@@ -227,14 +316,13 @@
                            - :mimetype:`text/plain; charset=utf-8`
     :>jsonarr string id: Document ID
     :>jsonarr string rev: New document revision token. Available
-      if document have saved without errors. *Optional*
+      if document has saved without errors. *Optional*
     :>jsonarr string error: Error type. *Optional*
     :>jsonarr string reason: Error reason. *Optional*
     :code 201: Document(s) have been created or updated
     :code 400: The request provided invalid JSON data
-    :code 417: Occurs when ``all_or_nothing`` option set as ``true`` and
-      at least one document was rejected by :ref:`validation function <vdufun>`
-    :code 500: Malformed data provided, while it's still valid JSON
+    :code 417: Occurs when at least one document was rejected by a
+     :ref:`validation function <vdufun>`
 
     **Request**:
 
@@ -366,10 +454,10 @@ documents created, here with the combination and their revision IDs:
         }
     ]
 
-The content and structure of the returned JSON will depend on the transaction
-semantics being used for the bulk update; see :ref:`api/db/bulk_docs/semantics`
-for more information. Conflicts and validation errors when updating documents
-in bulk must be handled separately; see :ref:`api/db/bulk_docs/validation`.
+For details of the semantic content and structure of the returned JSON see
+:ref:`api/db/bulk_docs/semantics`. Conflicts and validation errors when
+updating documents in bulk must be handled separately; see
+:ref:`api/db/bulk_docs/validation`.
 
 Updating Documents in Bulk
 ==========================
@@ -462,24 +550,17 @@ in bulk must be handled separately; see :ref:`api/db/bulk_docs/validation`.
 Bulk Documents Transaction Semantics
 ====================================
 
-CouchDB supports two different modes for updating (or inserting)
-documents using the bulk documentation system. Each mode affects both
-the state of the documents in the event of system failure, and the level
-of conflict checking performed on each document. The two modes are:
+Bulk document operations are **non-atomic**. This means that CouchDB does not
+guarantee that any individual document included in the bulk update (or insert)
+will be saved when you send the request. The response will contain the list of
+documents successfully inserted or updated during the process. In the event of
+a crash, some of the documents may have been successfully saved, while others
+lost.
 
--  **non-atomic**
-
-   The default mode is `non-atomic`, that is, CouchDB will only guarantee
-   that some of the documents will be saved when you send the request.
-   The response will contain the list of documents successfully inserted
-   or updated during the process. In the event of a crash, some of the
-   documents may have been successfully saved, and some will have been
-   lost.
-
-   In this mode, the response structure will indicate whether the
-   document was updated by supplying the new ``_rev`` parameter
-   indicating a new document revision was created. If the update failed,
-   then you will get an ``error`` of type ``conflict``. For example:
+The response structure will indicate whether the document was updated by
+supplying the new ``_rev`` parameter indicating a new document revision was
+created. If the update failed, you will get an ``error`` of type ``conflict``.
+For example:
 
    .. code-block:: javascript
 
@@ -501,87 +582,12 @@ of conflict checking performed on each document. The two modes are:
            }
        ]
 
-   In this case no new revision has been created and you will need to
-   submit the document update, with the correct revision tag, to update
-   the document.
-
--  **all-or-nothing**
-
-   In `all-or-nothing` mode, either all documents are written to the
-   database, or no documents are written to the database, in the event
-   of a system failure during commit.
-
-   In addition, the per-document conflict checking is not performed.
-   Instead a new revision of the document is created, even if the new
-   revision is in conflict with the current revision in the database.
-   The returned structure contains the list of documents with new
-   revisions:
-
-   .. code-block:: http
-
-       HTTP/1.1 201 Created
-       Cache-Control: must-revalidate
-       Content-Length: 215
-       Content-Type: application/json
-       Date: Sat, 26 Oct 2013 00:13:33 GMT
-       Server: CouchDB (Erlang OTP)
-
-       [
-           {
-               "id": "FishStew",
-               "ok": true,
-               "rev": "1-6a466d5dfda05e613ba97bd737829d67"
-           },
-           {
-               "id": "LambStew",
-               "ok": true,
-               "rev": "1-648f1b989d52b8e43f05aa877092cc7c"
-           },
-           {
-               "id": "BeefStew",
-               "ok": true,
-               "rev": "1-e4602845fc4c99674f50b1d5a804fdfa"
-           }
-       ]
-
-   When updating documents using this mode the revision of a document
-   included in views will be arbitrary. You can check the conflict
-   status for a document by using the ``conflicts=true`` query argument
-   when accessing the view. Conflicts should be handled individually to
-   ensure the consistency of your database.
-
-   To use this mode, you must include the ``all_or_nothing`` field (set
-   to true) within the main body of the JSON of the request.
-
-The effects of different database operations on the different modes are
-summarized below:
-
-* **Transaction Mode**: ``Non-atomic``
-
-  * **Transaction**: ``Insert``
-
-    * **Cause**: Requested document ID already exists
-    * **Resolution**: Resubmit with different document ID, or update the
-      existing document
-
-  * **Transaction**: ``Update``
-
-    * **Cause**: Revision missing or incorrect
-    * **Resolution**: Resubmit with correct revision
-
-* **Transaction Mode**: ``All-or-nothing``
-
-  * **Transaction**: ``Insert`` / ``Update``
-
-    * **Cause**: Additional revision inserted
-    * **Resolution**: Resolve conflicted revisions
+In this case no new revision has been created and you will need to submit the
+document update, with the correct revision tag, to update the document.
 
 Replication of documents is independent of the type of insert or update.
 The documents and revisions created during a bulk insert or update are
-replicated in the same way as any other document. This can mean that if
-you make use of the `all-or-nothing` mode the exact list of documents,
-revisions (and their conflict state) may or may not be replicated to
-other databases correctly.
+replicated in the same way as any other document.
 
 .. _api/db/bulk_docs/validation:
 
@@ -601,11 +607,8 @@ following type:
 
 -  **conflict**
 
-   The document as submitted is in conflict. If you used the default
-   bulk transaction mode then the new revision will not have been
+   The document as submitted is in conflict. The new revision will not have been
    created and you will need to re-submit the document to the database.
-   If you used ``all-or-nothing`` mode then you will need to manually
-   resolve the conflicted revisions of the document.
 
    Conflict resolution of documents added using the bulk docs interface
    is identical to the resolution procedures used when resolving

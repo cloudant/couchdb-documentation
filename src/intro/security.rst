@@ -68,14 +68,13 @@ identification for certain requests:
   </{db}/_design/{ddoc}>`)
 - Deleting a design document (:delete:`DELETE /database/_design/app?rev=2-6A7
   </{db}/_design/{ddoc}>`)
-- Execute a temporary view (:post:`POST /database/_temp_view
-  </{db}/_temp_view>`)
 - Triggering compaction (:post:`POST /database/_compact </{db}/_compact>`)
 - Reading the task status list (:get:`GET /_active_tasks </_active_tasks>`)
 - Restarting the server (:post:`POST /_restart </_restart>`)
-- Reading the active configuration (:get:`GET /_config </_config>`)
-- Updating the active configuration (:put:`PUT /_config/section/key
-  </_config/{section}/{key}>`)
+- Reading the active configuration
+  (:get:`GET /_node/{node-name}/_config </_config>`)
+- Updating the active configuration
+  (:put:`PUT /_node/{node-name}/_config/section/key </_config/{section}/{key}>`)
 
 Creating New Admin User
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -92,7 +91,7 @@ create an admin user. We'll call her ``anna``, and her password is ``secret``.
 Note the double quotes in the following code; they are needed to denote a string
 value for the :ref:`configuration API <api/config>`::
 
-    > curl -X PUT $HOST/_config/admins/anna -d '"secret"'
+    > curl -X PUT $HOST/_node/$NODENAME/_config/admins/anna -d '"secret"'
     ""
 
 As per the :ref:`_config <api/config>` API's behavior, we're getting
@@ -290,7 +289,7 @@ several *mandatory* fields, that CouchDB needs for authentication:
 - **name** (*string*): User's name aka login. **Immutable** e.g. you cannot
   rename an existing user - you have to create new one
 - **roles** (*array* of *string*): List of user roles. CouchDB doesn't provide
-  any builtin roles, so you're free to define your own depending on your needs.
+  any built-in roles, so you're free to define your own depending on your needs.
   However, you cannot set system roles like ``_admin`` there. Also, only
   administrators may assign roles to users - by default all users have no roles
 - **password_sha** (*string*): Hashed password with salt. Used for ``simple``
@@ -438,15 +437,11 @@ CouchDB should respond with:
     {"ok":true,"name":"jan","roles":[]}
 
 Hooray! You may wonder why this was so complex - we need to retrieve user's
-document, add a special field to it, and post it back. Where is that one big
-button that changes the password without worrying about the document's content?
-Actually, :ref:`Futon <intro/futon>` has one such thing at the bottom right
-corner if you are logged in. Using that will hide all the implementation details
-described above and keep it really simple for you.
+document, add a special field to it, and post it back.
 
 .. note::
     There is no password confirmation for API request: you should implement it
-    on your application layer like Futon does.
+    in your application layer.
 
 Users Public Information
 ------------------------
@@ -476,7 +471,9 @@ Now let's share the field ``name``. First, set up the ``public_fields``
 configuration option. Remember, that this action requires administrator
 privileges. The next command will prompt you for user `admin`'s password:
 
-    curl -X PUT http://localhost:5984/_config/couch_httpd_auth/public_fields \
+.. code-block:: bash
+
+    curl -X PUT http://localhost:5984/_node/nonode@nohost/_config/couch_httpd_auth/public_fields \
        -H "Content-Type: application/json" \
        -d '"name"' \
        -u admin
@@ -548,7 +545,7 @@ write normal documents::
 .. code-block:: javascript
 
     {"db_name":"mydatabase","doc_count":1,"doc_del_count":0,"update_seq":3,"purge_seq":0,
-    "compact_running":false,"disk_size":12376,"data_size":272,"instance_start_time":"1397672867731570",
+    "compact_running":false,"disk_size":12376,"data_size":272,"instance_start_time":"0",
     "disk_format_version":6,"committed_update_seq":3}
 
 If Jan attempted to create a design doc, however, CouchDB would return a

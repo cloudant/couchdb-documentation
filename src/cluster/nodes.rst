@@ -21,7 +21,7 @@ Node Management
 Adding a node
 =============
 
-Go to ``http://server1:45984/_membership`` to see the name of the node and all
+Go to ``http://server1:5984/_membership`` to see the name of the node and all
 the nodes it knows about and are connected too.
 
 .. code-block:: text
@@ -74,8 +74,16 @@ Removing a node
 Before you remove a node, make sure that you have moved all
 :ref:`shards <cluster/sharding/move>` away from that node.
 
-To remove ``node2`` from server ``yyy.yyy.yyy.yyy``:
+To remove ``node2`` from server ``yyy.yyy.yyy.yyy``, you need to first know the
+revision of the document that signifies that node’s existence:
 
 .. code-block:: text
 
-    curl -X DELETE "http://xxx.xxx.xxx.xxx:5986/_nodes/node2@yyy.yyy.yyy.yyy" -d {}
+    curl "http://xxx.xxx.xxx.xxx:5986/_nodes/node2@yyy.yyy.yyy.yyy"
+    {"_id":"node2@yyy.yyy.yyy.yyy","_rev":"1-967a00dff5e02add41820138abb3284d"}
+
+With that ``_rev``, you can now proceed to delete the node document:
+
+.. code-block:: text
+
+    curl -X DELETE "http://xxx.xxx.xxx.xxx:5986/_nodes/node2@yyy.yyy.yyy.yyy?rev=1-967a00dff5e02add41820138abb3284d"

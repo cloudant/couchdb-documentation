@@ -55,23 +55,35 @@
                      - :mimetype:`text/plain`
     :>header Content-Type: - :mimetype:`application/json`
                            - :mimetype:`text/plain; charset=utf-8`
-    :>json number committed_update_seq: The number of committed update.
+    :>json number cluster.n: Replicas. The number of copies of every document.
+    :>json number cluster.q: Shards. The number of range partitions.
+    :>json number cluster.r: Read quorum. The number of consistent copies
+      of a document that need to be read before a successful reply.
+    :>json number cluster.w: Write quorum. The number of copies of a document
+      that need to be written before a successful reply.
     :>json boolean compact_running: Set to ``true`` if the database compaction
       routine is operating on this database.
     :>json string db_name: The name of the database.
     :>json number disk_format_version: The version of the physical format used
       for the data when it is stored on disk.
-    :>json number data_size: The number of bytes of live data inside
-      the database file.
-    :>json number disk_size: The length of the database file on disk.
-      Views indexes are not included in the calculation.
+    :>json number data_size: *Deprecated.* Use ``sizes.active`` instead.
+    :>json number disk_size: *Deprecated.* Use ``sizes.file`` instead.
     :>json number doc_count: A count of the documents in the specified
       database.
     :>json number doc_del_count: Number of deleted documents
-    :>json string instance_start_time: Timestamp of when the database was
-      opened, expressed in microseconds since the epoch.
+    :>json string instance_start_time: Always ``"0"``. (Returned for legacy
+      reasons.)
+    :>json object other: Used by Cloudant. *Deprecated.*
     :>json number purge_seq: The number of purge operations on the database.
-    :>json number update_seq: The current number of updates to the database.
+    :>json number sizes.active: The size of live data inside the database, in
+      bytes.
+    :>json number sizes.external: The uncompressed size of database contents
+      in bytes.
+    :>json number sizes.file: The size of the database file on disk in bytes.
+      Views indexes are not included in the calculation.
+    :>json string update_seq: An opaque string that describes the state
+      of the database. Do not rely on this string for counting the number
+      of updates.
     :code 200: Request completed successfully
     :code 404: Requested database not found
 
@@ -95,7 +107,12 @@
         Server: CouchDB (Erlang/OTP)
 
         {
-            "committed_update_seq": 292786,
+            "cluster": {
+                "n": 3,
+                "q": 8,
+                "r": 2,
+                "w": 2
+            },
             "compact_running": false,
             "data_size": 65031503,
             "db_name": "receipts",
@@ -103,9 +120,17 @@
             "disk_size": 137433211,
             "doc_count": 6146,
             "doc_del_count": 64637,
-            "instance_start_time": "1376269325408900",
+            "instance_start_time": "0",
+            "other": {
+                "data_size": 66982448
+            },
             "purge_seq": 0,
-            "update_seq": 292786
+            "sizes": {
+                "active": 65031503,
+                "external": 66982448,
+                "file": 137433211
+            },
+            "update_seq": "292786-g1AAAAF..."
         }
 
 .. http:put:: /{db}
@@ -127,6 +152,8 @@
     written as ``^[a-z][a-z0-9_$()+/-]*$``.
 
     :param db: Database name
+    :query integer q: Shards, aka the number of range partitions. Default is
+      8, unless overridden in the :config:option:`cluster config <cluster/q>`.
     :<header Accept: - :mimetype:`application/json`
                      - :mimetype:`text/plain`
     :>header Content-Type: - :mimetype:`application/json`
@@ -284,15 +311,18 @@
     :<header X-Couch-Full-Commit: Overrides server's
       :config:option:`commit policy <couchdb/delayed_commits>`. Possible values
       are: ``false`` and ``true``. *Optional*.
+
     :query string batch: Stores document in :ref:`batch mode
       <api/doc/batch-writes>` Possible values: ``ok``. *Optional*
+
     :>header Content-Type: - :mimetype:`application/json`
                            - :mimetype:`text/plain; charset=utf-8`
-    :>header ETag: Quoted new document's revision
     :>header Location: Document's URI
+
     :>json string id: Document ID
     :>json boolean ok: Operation status
     :>json string rev: Revision info
+
     :code 201: Document created and stored on disk
     :code 202: Document data accepted, but not yet stored on disk
     :code 400: Invalid database name
@@ -324,7 +354,6 @@
         Content-Length: 95
         Content-Type: application/json
         Date: Tue, 13 Aug 2013 15:19:25 GMT
-        ETag: "1-9c65296036141e575d32ba9c034dd3ee"
         Location: http://localhost:5984/db/ab39fe0993049b84cfa81acd6ebad09d
         Server: CouchDB (Erlang/OTP)
 
@@ -381,22 +410,29 @@ document with the ID ``FishStew``.
 Batch Mode Writes
 =================
 
-You can write documents to the database at a higher rate by using the
-batch option. This collects document writes together in memory (on a
-user-by-user basis) before they are committed to disk. This increases
-the risk of the documents not being stored in the event of a failure,
-since the documents are not written to disk immediately.
+You can write documents to the database at a higher rate by using the batch
+option. This collects document writes together in memory (on a per-user basis)
+before they are committed to disk. This increases the risk of the documents not
+being stored in the event of a failure, since the documents are not written to
+disk immediately.
 
-To use the batched mode, append the ``batch=ok`` query argument to the
-URL of the ``PUT`` or :post:`/{db}` request. The CouchDB server will
-respond with a HTTP :statuscode:`202` response code immediately.
+Batch mode is not suitable for critical data, but may be ideal for applications
+such as log data, when the risk of some data loss due to a crash is acceptable.
+
+To use batch mode, append the ``batch=ok`` query argument to the URL of a
+:post:`/{db}`, :put:`/{db}/{docid}`, or :delete:`/{db}/{docid}` request. The
+CouchDB server will respond with an HTTP :statuscode:`202` response code
+immediately.
+
+Documents in the batch may be manually flushed by using the
+:post:`/{db}/_ensure_full_commit` endpoint.
 
 .. note::
     Creating or updating documents with batch mode doesn't guarantee that all
     documents will be successfully stored on disk. For example, individual
     documents may not be saved due to conflicts, rejection by
     :ref:`validation function <vdufun>` or by other reasons, even if overall
-    the batch was sucessfully submitted.
+    the batch was successfully submitted.
 
 **Request**:
 

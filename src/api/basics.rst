@@ -82,7 +82,7 @@ CouchDB supports the following HTTP request methods:
   A special method that can be used to copy documents and objects.
 
 If you use an unsupported HTTP request type with an URL that does not support
-the specified type then a ``405 - Resource Not Allowed`` will be returned,
+the specified type then a ``405 - Method Not Allowed`` will be returned,
 listing the supported HTTP methods. For example:
 
 .. code-block:: javascript
@@ -143,6 +143,7 @@ Request Headers
 
   .. code-block:: http
 
+      HTTP/1.1 200 OK
       Server: CouchDB (Erlang/OTP)
       Date: Thu, 13 Jan 2011 13:39:34 GMT
       Content-Type: text/plain;charset=utf-8
@@ -165,6 +166,7 @@ Request Headers
 
   .. code-block:: http
 
+      HTTP/1.1 200 OK
       Server: CouchDB (Erlang/OTP)
       Date: Thu, 13 Jan 2013 13:40:11 GMT
       Content-Type: application/json
@@ -307,7 +309,7 @@ Number Handling
 ---------------
 
 Developers and users new to computer handling of numbers often encounter
-suprises when expecting that a number stored in JSON format does not
+surprises when expecting that a number stored in JSON format does not
 necessarily return as the same number as compared character by character.
 
 Any numbers defined in JSON that contain a decimal point or exponent will be
@@ -450,7 +452,7 @@ refer to a single specific value that a double can represent.
 The important point to understand is that we're mapping from one infinite set
 onto a finite set. An easy way to see this is by reflecting on this::
 
-    1.0 == 1.00 == 1.000 = 1.(infinite zeroes)
+    1.0 == 1.00 == 1.000 = 1.(infinite zeros)
 
 Obviously a computer can't hold infinite bytes so we have to decimate our
 infinitely sized set to a finite set that can be represented concisely.
@@ -470,7 +472,7 @@ input. Its behaving the same as any other common JSON library does, its just
 not pretty printing its output.
 
 On the other hand, if you actually are in a position where an IEEE-754 double
-is not a satisfactory datatype for your numbers, then the answer as has been
+is not a satisfactory data type for your numbers, then the answer as has been
 stated is to not pass your numbers through this representation. In JSON this is
 accomplished by encoding them as a string or by using integer types (although
 integer types can still bite you if you use a platform that has a different
@@ -547,7 +549,7 @@ specific request types are provided in the corresponding API call reference.
 
       {"error":"not_found","reason":"no_db_file"}
 
-- ``405 - Resource Not Allowed``
+- ``405 - Method Not Allowed``
 
   A request was made using an invalid HTTP request type for the URL requested.
   For example, you have requested a ``PUT`` when a ``POST`` is required. Errors
@@ -566,7 +568,13 @@ specific request types are provided in the corresponding API call reference.
   The request headers from the client and the capabilities of the server do not
   match.
 
-- ``415 - Bad Content Type``
+- ``413 - Request Entity Too Large``
+
+  A document exceeds the configured :config:option:`couchdb/max_document_size`
+  value or the entire request exceeds the
+  :config:option:`httpd/max_http_request_size` value.
+
+- ``415 - Unsupported Media Type``
 
   The content types supported, and the content type of the information being
   requested or submitted indicate that the content type is not supported.

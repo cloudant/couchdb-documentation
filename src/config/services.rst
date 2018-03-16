@@ -48,18 +48,18 @@ CouchDB Daemonized Mini Apps
 
     .. config:option:: httpd
 
-        HTTP server daemon::
+        Node-local HTTP server daemon (default port: `5986`)::
 
             [daemons]
             httpd={couch_httpd, start_link, []}
 
     .. config:option:: httpsd
 
-        Provides :ref:`SSL support <config/ssl>`. The default ssl port CouchDB
+        Provides :ref:`SSL support <config/ssl>`. The default SSL port CouchDB
         listens on is `6984`::
 
             [daemons]
-            httpsd = {couch_httpd, start_link, [https]}
+            httpsd = {chttpd, start_link, [https]}
 
     .. config:option:: index_server
 

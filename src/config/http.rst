@@ -24,6 +24,13 @@ HTTP Server Options
 
 .. config:section:: httpd :: HTTP Server Options
 
+.. warning::
+    In CouchDB 2.x, the `httpd` section mostly refers to the node-local port,
+    on port 5986 by default. This port is used only for maintenance and
+    administrative tasks. **It should not be used for regular CouchDB access**,
+    and for security reasons, **should always be bound to localhost**
+    (`127.0.0.1`) or a private LAN segment only.
+
     .. config:option:: allow_jsonp :: Enables JSONP support
 
         The ``true`` value of this option enables `JSONP`_ support (it's
@@ -32,47 +39,21 @@ HTTP Server Options
             [httpd]
             allow_jsonp = false
 
-        .. _JSONP: http://www.json-p.org/
-
-    .. config:option:: authentication_handlers :: Authentication handlers
-
-        List of used authentication handlers that used by CouchDB. You may
-        extend them via third-party plugins or remove some of them if you won't
-        let users to use one of provided methods::
-
-            [httpd]
-            authentication_handlers = {couch_httpd_oauth, oauth_authentication_handler}, {couch_httpd_auth, cookie_authentication_handler}, {couch_httpd_auth, default_authentication_handler}
-
-        - ``{couch_httpd_oauth, oauth_authentication_handler}``: handles OAuth;
-        - ``{couch_httpd_auth, cookie_authentication_handler}``: used for Cookie auth;
-        - ``{couch_httpd_auth, proxy_authentication_handler}``: used for Proxy auth;
-        - ``{couch_httpd_auth, default_authentication_handler}``: used for Basic auth;
-        - ``{couch_httpd_auth, null_authentication_handler}``: disables auth.
-          Everlasting `Admin Party`!
+        .. _JSONP: https://en.wikipedia.org/wiki/JSONP
 
     .. config:option:: bind_address :: Listen IP address
 
-        Defines the IP address by which CouchDB will be accessible::
+        Defines the IP address by which the node-local port is available.
+        The recommended setting is always::
 
             [httpd]
             bind_address = 127.0.0.1
 
-        To let CouchDB listen any available IP address, just set up ``0.0.0.0``
-        value::
-
-            [httpd]
-            bind_address = 0.0.0.0
-
-        For IPv6 support you need to set ``::1`` if you want to let CouchDB
-        listen local address::
+        For IPv6 support you need to set `::1` if you want to let CouchDB
+        listen correctly::
 
             [httpd]
             bind_address = ::1
-
-        or ``::`` for any available::
-
-            [httpd]
-            bind_address = ::
 
     .. config:option:: changes_timeout :: Changes feed timeout
 
@@ -109,27 +90,17 @@ HTTP Server Options
             [httpd]
             enable_cors = false
 
-    .. config:option:: log_max_chunk_size :: Logs chunk size
-
-        Defines maximum chunk size in bytes for :ref:`_log <api/server/log>`
-        resource::
-
-            [httpd]
-            log_max_chunk_size = 1000000
-
     .. config:option:: port :: Listen port
 
-        Defined the port number to listen::
+        Defines the port number to listen::
 
             [httpd]
             port = 5984
 
-        To let CouchDB handle any free port, set this option to ``0``::
+        To let CouchDB use any free port, set this option to ``0``::
 
             [httpd]
             port = 0
-
-        After that, CouchDB URI could be located within the URI file.
 
     .. config:option:: redirect_vhost_handler :: Virtual Hosts custom redirect handler
 
@@ -139,7 +110,7 @@ HTTP Server Options
             [httpd]
             redirect_vhost_handler = {Module, Fun}
 
-        The specified function take 2 arguments: the Mochiweb request object
+        The specified function take 2 arguments: the MochiWeb request object
         and the target path.
 
     .. config:option:: server_options :: MochiWeb Server Options
@@ -179,7 +150,7 @@ HTTP Server Options
         <vhosts>`::
 
             [httpd]
-            vhost_global_handlers = _utils, _uuids, _session, _oauth, _users
+            vhost_global_handlers = _utils, _uuids, _session, _users
 
     .. config:option:: x_forwarded_host :: X-Forwarder-Host
 
@@ -214,12 +185,111 @@ HTTP Server Options
             [httpd]
             x_forwarded_ssl = X-Forwarded-Ssl
 
+    .. config:option:: enable_xframe_options :: Controls X-Frame-Options header
+
+        Controls :ref:`Enables or disabled <config/xframe_options>` feature::
+
+            [httpd]
+            enable_xframe_options = false
+
     .. config:option:: WWW-Authenticate :: Force basic auth
 
-        Set this option to trigger basic-auth popup on unauthorized requests::
+        Set this option to trigger basic-auth pop-up on unauthorized requests::
 
             [httpd]
             WWW-Authenticate = Basic realm="Welcome to the Couch!"
+
+    .. config:option:: max_http_request_size :: Maximum HTTP request body size
+
+        .. versionchanged:: 2.1.0
+
+        Limit the maximum size of the HTTP request body. This setting applies
+        to all requests and it doesn't discriminate between single vs.
+        multi-document operations. So setting it to 1MB would block a
+        `PUT` of a document larger than 1MB, but it might also block a
+        `_bulk_docs` update of 1000 1KB documents, or a multipart/related
+        update of a small document followed by two 512KB attachments. This
+        setting is intended to be used as a protection against maliciously
+        large HTTP requests rather than for limiting maximum document sizes. ::
+
+            [httpd]
+            max_http_request_size = 4294967296 ; 4 GB
+
+        .. warning::
+           Before version 2.1.0 :config:option:`couchdb/max_document_size` was
+           implemented effectively as ``max_http_request_size``. That is, it
+           checked HTTP request bodies instead of document sizes. After the
+           upgrade, it is advisable to review the usage of these configuration
+           settings.
+
+.. config:section:: chttpd :: Clustered HTTP Server Options
+
+.. note::
+    In CouchDB 2.x, the `chttpd` section refers to the standard, clustered
+    port. All use of CouchDB, aside from a few specific maintenance tasks as
+    described in this documentation, should be performed over this port.
+
+        Defines the IP address by which the clustered port is available::
+
+            [chttpd]
+            bind_address = 127.0.0.1
+
+        To let CouchDB listen any available IP address, use `0.0.0.0`::
+
+            [chttpd]
+            bind_address = 0.0.0.0
+
+        For IPv6 support you need to set `::1` if you want to let CouchDB
+        listen correctly::
+
+            [chttpd]
+            bind_address = ::1
+
+        or `::` for any available::
+
+            [chttpd]
+            bind_address = ::
+
+    .. config:option:: port :: Listen port
+
+        Defines the port number to listen::
+
+            [chttpd]
+            port = 5984
+
+        To let CouchDB use any free port, set this option to `0`::
+
+            [chttpd]
+            port = 0
+
+    .. config:option:: prefer_minimal :: Sends minimal set of headers
+
+        If a request has the header `"Prefer": "return=minimal"`, CouchDB
+        will only send the headers that are listed for the `prefer_minimal`
+        configuration.::
+
+            [chttpd]
+            prefer_minimal = Cache-Control, Content-Length, Content-Range, Content-Type, ETag, Server, Transfer-Encoding, Vary
+
+        .. warning::
+            Removing the Server header from the settings will mean that
+            the CouchDB server header is replaced with the
+            MochiWeb server header.
+
+    .. config:option:: authentication_handlers :: Authentication handlers
+
+        List of authentication handlers used by CouchDB. You may
+        extend them via third-party plugins or remove some of them if you won't
+        let users to use one of provided methods::
+
+            [chttpd]
+            authentication_handlers = {chttpd_auth, cookie_authentication_handler}, {chttpd_auth, default_authentication_handler}
+
+        - ``{chttpd_auth, cookie_authentication_handler}``: used for Cookie auth;
+        - ``{couch_httpd_auth, proxy_authentication_handler}``: used for Proxy auth;
+        - ``{chttpd_auth, default_authentication_handler}``: used for Basic auth;
+        - ``{couch_httpd_auth, null_authentication_handler}``: disables auth.
+          Everlasting `Admin Party`!
 
 .. _config/ssl:
 
@@ -253,15 +323,13 @@ Secure Socket Level Options
         shell> chmod 600 privkey.pem couchdb.pem
         shell> chown couchdb privkey.pem couchdb.pem
 
-    Now, you need to edit CouchDB's configuration, either by editing your
-    ``local.ini`` file or using the ``/_config`` API calls or the
-    configuration screen in Futon. Here is what you need to do in
-    ``local.ini``, you can infer what needs doing in the other places.
+    Now, you need to edit CouchDB's configuration, by editing your
+    ``local.ini`` file. Here is what you need to do.
 
     At first, :option:`enable the HTTPS daemon <daemons/httpsd>`::
 
         [daemons]
-        httpsd = {couch_httpd, start_link, [https]}
+        httpsd = {chttpd, start_link, [https]}
 
     Next, under the ``[ssl]`` section set up the newly generated certificates::
 
@@ -274,7 +342,7 @@ Secure Socket Level Options
     Now start (or restart) CouchDB. You should be able to connect to it
     using HTTPS on port 6984:
 
-    .. code-block:: bash
+    .. code-block:: console
 
         shell> curl https://127.0.0.1:6984/
         curl: (60) SSL certificate problem, verify that the CA cert is OK. Details:
@@ -297,7 +365,7 @@ Secure Socket Level Options
     notifies you. Luckily you trust yourself (don't you?) and you can specify
     the ``-k`` option as the message reads:
 
-    .. code-block:: bash
+    .. code-block:: console
 
         shell> curl -k https://127.0.0.1:6984/
         {"couchdb":"Welcome","version":"1.5.0"}
@@ -335,7 +403,7 @@ Secure Socket Level Options
 
     .. config:option:: password :: Certificate key password
 
-        String containing the user's password. Only used if the private keyfile
+        String containing the user's password. Only used if the private key file
         is password protected::
 
             [ssl]
@@ -590,3 +658,28 @@ but uses a variable name. And the third one allows you to use any URL with
 
 You could also change the default function to handle request by changing the
 setting :option:`httpd/redirect_vhost_handler`.
+
+.. _xframe_options:
+.. _config/xframe_options:
+
+X-Frame-Options
+=============================
+
+X-Frame-Options is a response header that controls whether a http response
+can be embedded in a <frame>, <iframe> or <object>. This is a security
+feature to help against clickjacking.
+
+    [x_frame_options]
+    ; Settings same-origin will return X-Frame-Options: SAMEORIGIN.
+    ; If same origin is set, it will ignore the hosts setting
+    ; same_origin = true
+    ; Settings hosts will
+    ; return X-Frame-Options: ALLOW-FROM https://example.com/
+    ; List of hosts separated by a comma. * means accept all
+    ; hosts =
+
+If xframe_options is enabled it will return `X-Frame-Options: DENY` by default.
+If `same_origin` is enabled it will return `X-Frame-Options: SAMEORIGIN`.
+A `X-FRAME-OPTIONS: ALLOW-FROM url` will be returned when `same_origin`
+is false, and the HOST header matches one of the urls in the `hosts` config.
+Otherwise a `X-Frame-Options: DENY` will be returned.

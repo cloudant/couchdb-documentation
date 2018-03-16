@@ -26,9 +26,25 @@ Logging options
 
     CouchDB logging configuration.
 
+    .. config:option:: writer :: Set the log writer to use.
+
+        Current writers include:
+
+        - ``stderr``: Logs are sent to stderr.
+        - ``file``: Logs are sent to the file set in
+          :option:`log file <log/file>`.
+        - ``syslog``: Logs are sent to the syslog daemon.
+
+        You can also specify a full module name here if implement your own
+        writer::
+
+            [log]
+            writer = stderr
+
     .. config:option:: file :: Logging file path
 
-        Specifies the location of file for logging output::
+        Specifies the location of file for logging output. Only used by the
+        ``file`` :option:`writer <log/writer>`::
 
             [log]
             file = /var/log/couchdb/couch.log
@@ -36,9 +52,27 @@ Logging options
         This path should be readable and writable for user that runs CouchDB
         service (`couchdb` by default).
 
+    .. config:option:: write_buffer
+
+       Specifies the size of the file log write buffer in bytes, to enable
+       delayed log writes. Only used by the ``file``
+       :option:`writer <log/writer>`::
+
+            [log]
+            write_buffer = 0
+
+    .. config:option:: write_delay
+
+        Specifies the wait in milliseconds before committing logs to disk, to
+        enable delayed log writes. Only used by the ``file``
+        :option:`writer <log/writer>`::
+
+            [log]
+            write_delay = 0
+
     .. config:option:: level :: Logging verbose level
 
-        .. versionchanged:: 1.3: Added ``warning`` level.
+        .. versionchanged:: 1.3 Added ``warning`` level.
 
         Logging level defines how verbose and detailed logging will be::
 
@@ -52,11 +86,15 @@ Logging options
           and more;
         - ``info``: Informative logging. Includes HTTP requests headlines,
           startup of an external processes etc.
-        - ``warning``: Warning messages are alerts about edge situations that
+        - ``notice``
+        - ``warning`` or ``warn``: Warning messages are alerts about edge situations that
           may lead to errors. For instance, compaction daemon alerts about low
           or insufficient disk space at this level.
-        - ``error``: Error level includes only things that going wrong, crush
+        - ``error`` or ``err``: Error level includes only things that go wrong, like crash
           reports and HTTP error responses (5xx codes).
+        - ``critical`` or ``crit``
+        - ``alert``
+        - ``emergency`` or ``emerg``
         - ``none``: Disables logging any messages.
 
     .. config:option:: include_sasl
@@ -68,23 +106,34 @@ Logging options
 
         .. _SASL: http://www.erlang.org/doc/apps/sasl/
 
-.. _config/log_level_by_module:
+    .. config:option:: syslog_host
 
-Per module logging
-==================
+        Specifies the syslog host to send logs to. Only used by the
+        ``syslog`` :option:`writer <log/writer>`::
 
-.. config:section:: log_level_by_module :: Per module logging
+            [log]
+            syslog_host = localhost
 
-    .. versionadded:: 1.3
+    .. config:option:: syslog_port
 
-    In this section you can specify :option:`log level <log/level>` on a
-    per-module basis::
+        Specifies the syslog port to connect to when sending logs. Only used by
+        the ``syslog`` :option:`writer <log/writer>`::
 
-        [log_level_by_module]
-        couch_httpd = debug
-        couch_replicator = info
-        couch_query_servers = error
+            [log]
+            syslog_port = 514
 
-    See `src/*/*.erl`_ for available modules.
+    .. config:option:: syslog_appid
 
-    .. _src/*/*.erl: https://git-wip-us.apache.org/repos/asf?p=couchdb.git;a=tree;f=src;hb=HEAD
+        Specifies application name to the ``syslog``
+        :option:`writer <log/writer>`::
+
+            [log]
+            syslog_appid = couchdb
+
+    .. config:option:: syslog_facility
+
+        Specifies the syslog facility to use with the ``syslog``
+        :option:`writer <log/writer>`::
+
+            [log]
+            syslog_facility = local2

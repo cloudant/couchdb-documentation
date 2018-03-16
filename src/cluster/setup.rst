@@ -12,9 +12,9 @@
 
 .. _cluster/setup:
 
-=====
-Setup
-=====
+======
+Set Up
+======
 
 Everything you need to know to prepare the cluster for the installation of
 CouchDB.
@@ -24,8 +24,8 @@ Firewall
 
 If you do not have a firewall between your servers, then you can skip this.
 
-CouchDB in cluster mode uses the port ``5984`` just as standalone, but is also
-uses ``5986`` for the admin interface.
+CouchDB in cluster mode uses the port ``5984`` just as standalone, but it also
+uses ``5986`` for node-local APIs.
 
 Erlang uses TCP port ``4369`` (EPMD) to find other nodes, so all servers must be
 able to speak to each other on this port. In an Erlang Cluster, all nodes are
@@ -34,7 +34,9 @@ connected to all other nodes. A mesh.
 .. warning::
     If you expose the port ``4369`` to the Internet or any other untrusted
     network, then the only thing protecting you is the
-    :ref:`cookie <cluster/setup/cookie>`.
+    `cookie`_.
+
+.. _cookie: http://erlang.org/doc/reference_manual/distributed.html
 
 Every Erlang application then uses other ports for talking to each other. Yes,
 this means random ports. This will obviously not work with a firewall, but it is
@@ -143,21 +145,89 @@ Open ``sys.config``, on all nodes, and add ``inet_dist_listen_min, 9100`` and
         ]}
     ].
 
-Configuration files
-===================
+.. _cluster/setup/wizard:
 
-.. _cluster/setup/cookie:
+The Cluster Setup Wizard
+========================
 
-Erlang Cookie
--------------
+Setting up a cluster of Erlang applications correctly can be a daunting
+task. Luckily, CouchDB 2.0 comes with a convenient Cluster Setup Wizard
+as part of the Fauxton web administration interface.
 
-Open up ``vm.args`` and set the ``-setcookie`` to something secret. This must be
-identical on all nodes.
+After installation and initial start-up, visit Fauxton at
+``http://127.0.0.1:5984/_utils#setup``. You will be asked to set up
+CouchDB as a single-node instance or set up a cluster.
 
-Set ``-name`` to the name the node will have. All nodes must have a unique name.
+When you click "setup cluster" you are asked for admin credentials again and
+then to add nodes by IP address. To get more nodes, go through the same install
+procedure on other machines. Be sure to specify the total number of nodes you
+expect to add to the cluster before adding nodes.
 
-Admin
------
+Before you can add nodes to form a cluster, you have to have them
+listen on a public IP address and set up an admin user. Do this, once
+per node:
 
-All nodes authenticates users locally, so you must add an admin user to
-local.ini on all nodes. Otherwise you will not be able to login on the cluster.
+.. code-block:: bash
+
+    curl -X PUT http://127.0.0.1:5984/_node/couchdb@<this-nodes-ip-address>/_config/admins/admin -d '"password"'
+    curl -X PUT http://127.0.0.1:5984/_node/couchdb@<this-nodes-ip-address>/_config/chttpd/bind_address -d '"0.0.0.0"'
+
+Now you can enter their IP addresses in the setup screen on your first
+node. And make sure to put in the admin username and password. And use
+the same admin username and password on all nodes.
+
+Once you added all nodes, click "Setup" and Fauxton will finish the
+cluster configuration for you.
+
+See http://127.0.0.1:5984/_membership to get a list of all the nodes in
+your cluster.
+
+Now your cluster is ready and available. You can send requests to any
+one of the nodes and get to all the data.
+
+For a proper production setup, you'd now set up an HTTP proxy in front
+of the nodes, that does load balancing. We recommend `HAProxy`_. See
+our `example configuration for HAProxy`_. All you need is to adjust the
+ip addresses and ports.
+
+.. _cluster/setup/api:
+
+The Cluster Setup API
+=====================
+
+If you would prefer to manually configure your CouchDB cluster, CouchDB exposes
+the ``_cluster_setup`` endpoint for that. After installation and initial setup,
+we can set up the cluster. On each node we need to run the following command to
+set up the node:
+
+.. code-block:: bash
+
+     curl -X POST -H "Content-Type: application/json" http://admin:password@127.0.0.1:5984/_cluster_setup -d '{"action": "enable_cluster", "bind_address":"0.0.0.0", "username": "admin", "password":"password", "node_count":"3"}'
+
+After that we can join all the nodes together. Choose one node
+as the "setup coordination node" to run all these commands on.
+This is a "setup coordination node" that manages the setup and
+requires all other nodes to be able to see it and vice versa.
+Set up will not work with unavailable nodes.
+The notion of "setup coordination node" will be gone once the setup is finished.
+From then on, the cluster will no longer have a "setup coordination node".
+To add a node run these two commands:
+
+.. code-block:: bash
+
+    curl -X POST -H "Content-Type: application/json" http://admin:password@127.0.0.1:5984/_cluster_setup -d '{"action": "enable_cluster", "bind_address":"0.0.0.0", "username": "admin", "password":"password", "port": 15984, "node_count": "3", "remote_node": "<remote-node-ip>", "remote_current_user": "<remote-node-username>", "remote_current_password": "<remote-node-password>" }'
+    curl -X POST -H "Content-Type: application/json" http://admin:password@127.0.0.1:5984/_cluster_setup -d '{"action": "add_node", "host":"<remote-node-ip>", "port": "<remote-node-port>", "username": "admin", "password":"password"}'
+
+This will join the two nodes together.
+Keep running the above commands for each
+node you want to add to the cluster. Once this is done run the
+following command to complete the setup and add the missing databases:
+
+.. code-block:: bash
+
+    curl -X POST -H "Content-Type: application/json" http://admin:password@127.0.0.1:5984/_cluster_setup -d '{"action": "finish_cluster"}'
+
+Your CouchDB cluster is now set up.
+
+.. _HAProxy: http://haproxy.org/
+.. _example configuration for HAProxy: https://github.com/apache/couchdb/blob/master/rel/haproxy.cfg

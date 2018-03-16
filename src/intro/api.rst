@@ -21,7 +21,7 @@ nitty-gritty and clever bits. We show you best practices and guide you around
 common pitfalls.
 
 We start out by revisiting the basic operations we ran in the previous document
-:ref:`intro/tour`, looking behind the scenes. We also show what Futon needs to
+:ref:`intro/tour`, looking behind the scenes. We also show what Fauxton needs to
 do behind its user interface to give us the nice features we saw earlier.
 
 This document is both an introduction to the core CouchDB API as well as a
@@ -56,12 +56,10 @@ CouchDB replies, all excited to get going:
 
     {
         "couchdb": "Welcome",
-        "uuid": "85fb71bf700c17267fef77535820e371",
+        "version": "2.0.0",
         "vendor": {
-            "name": "The Apache Software Foundation",
-            "version": "1.5.0"
-        },
-        "version": "1.5.0"
+            "name": "The Apache Software Foundation"
+        }
     }
 
 You get back a JSON string, that, if parsed into a native object or data

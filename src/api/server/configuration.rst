@@ -19,10 +19,17 @@ Configuration
 The CouchDB Server Configuration API provide an interface to query and update
 the various configuration values within a running CouchDB instance.
 
-``/_config``
-============
+Accessing the local node's configuration
+========================================
 
-.. http:get:: /_config
+The literal string ``_local`` serves as an alias for the local node name, so
+for all configuration URLs, ``{node-name}`` may be replaced ``_local``, to
+interact with the local node's configuration.
+
+``/_node/{node-name}/_config``
+==============================
+
+.. http:get:: /_node/{node-name}/_config
     :synopsis: Obtains a list of the entire server configuration
 
     Returns the entire CouchDB server configuration as a JSON structure. The
@@ -40,7 +47,7 @@ the various configuration values within a running CouchDB instance.
 
     .. code-block:: http
 
-        GET /_config HTTP/1.1
+        GET /_node/nonode@nohost/_config HTTP/1.1
         Accept: application/json
         Host: localhost:5984
 
@@ -60,23 +67,24 @@ the various configuration values within a running CouchDB instance.
                 "compressible_types": "text/*, application/javascript, application/json,  application/xml",
                 "compression_level": "8"
             },
-            "couch_httpd_auth": {
-                "auth_cache_size": "50",
-                "authentication_db": "_users",
-                "authentication_redirect": "/_utils/session.html",
-                "require_valid_user": "false",
-                "timeout": "600"
-            },
             "couchdb": {
+                "users_db_suffix": "_users",
                 "database_dir": "/var/lib/couchdb",
                 "delayed_commits": "true",
                 "max_attachment_chunk_size": "4294967296",
                 "max_dbs_open": "100",
-                "max_document_size": "4294967296",
                 "os_process_timeout": "5000",
                 "uri_file": "/var/lib/couchdb/couch.uri",
                 "util_driver_dir": "/usr/lib64/couchdb/erlang/lib/couch-1.5.0/priv/lib",
                 "view_index_dir": "/var/lib/couchdb"
+            },
+            "chttpd": {
+                "backlog": "512",
+                "bind_address": "0.0.0.0",
+                "docroot": "./share/www",
+                "port": "5984",
+                "require_valid_user": "false",
+                "socket_options": "[{recbuf, 262144}, {sndbuf, 262144}, {nodelay, true}]"
             },
             "daemons": {
                 "auth_cache": "{couch_auth_cache, start_link, []}",
@@ -91,13 +99,13 @@ the various configuration values within a running CouchDB instance.
             },
             "httpd": {
                 "allow_jsonp": "false",
-                "authentication_handlers": "{couch_httpd_oauth, oauth_authentication_handler}, {couch_httpd_auth, cookie_authentication_handler}, {couch_httpd_auth, default_authentication_handler}",
+                "authentication_handlers": "{couch_httpd_auth, cookie_authentication_handler}, {couch_httpd_auth, default_authentication_handler}",
                 "bind_address": "192.168.0.2",
                 "default_handler": "{couch_httpd_db, handle_request}",
                 "max_connections": "2048",
                 "port": "5984",
                 "secure_rewrites": "true",
-                "vhost_global_handlers": "_utils, _uuids, _session, _oauth, _users"
+                "vhost_global_handlers": "_utils, _uuids, _session, _users"
             },
             "httpd_db_handlers": {
                 "_changes": "{couch_httpd_db, handle_changes_req}",
@@ -119,8 +127,6 @@ the various configuration values within a running CouchDB instance.
                 "_active_tasks": "{couch_httpd_misc_handlers, handle_task_status_req}",
                 "_all_dbs": "{couch_httpd_misc_handlers, handle_all_dbs_req}",
                 "_config": "{couch_httpd_misc_handlers, handle_config_req}",
-                "_log": "{couch_httpd_misc_handlers, handle_log_req}",
-                "_oauth": "{couch_httpd_oauth, handle_oauth_req}",
                 "_replicate": "{couch_httpd_misc_handlers, handle_replicate_req}",
                 "_restart": "{couch_httpd_misc_handlers, handle_restart_req}",
                 "_session": "{couch_httpd_auth, handle_session_req}",
@@ -130,6 +136,7 @@ the various configuration values within a running CouchDB instance.
                 "favicon.ico": "{couch_httpd_misc_handlers, handle_favicon_req, \"/usr/share/couchdb/www\"}"
             },
             "log": {
+                "writer": "file",
                 "file": "/var/log/couchdb/couch.log",
                 "include_sasl": "true",
                 "level": "info"
@@ -153,12 +160,15 @@ the various configuration values within a running CouchDB instance.
             }
         }
 
+.. versionchanged: 2.0.0 The config endpoint from ``/_config`` to
+   ``/_node/{node-name}/_config``.
+
 .. _api/config/section:
 
-``/_config/section``
-====================
+``_node/{node-name}/_config/section``
+=====================================
 
-.. http:get:: /_config/{section}
+.. http:get:: /_node/{node-name}/_config/{section}
     :synopsis: Returns all the configuration values for the specified section
 
     Gets the configuration structure for a single section.
@@ -175,7 +185,7 @@ the various configuration values within a running CouchDB instance.
 
     .. code-block:: http
 
-        GET /_config/httpd HTTP/1.1
+        GET /_node/nonode@nohost/_config/httpd HTTP/1.1
         Accept: application/json
         Host: localhost:5984
 
@@ -192,22 +202,21 @@ the various configuration values within a running CouchDB instance.
 
         {
             "allow_jsonp": "false",
-            "authentication_handlers": "{couch_httpd_oauth, oauth_authentication_handler}, {couch_httpd_auth, cookie_authentication_handler}, {couch_httpd_auth, default_authentication_handler}",
+            "authentication_handlers": "{couch_httpd_auth, cookie_authentication_handler}, {couch_httpd_auth, default_authentication_handler}",
             "bind_address": "127.0.0.1",
             "default_handler": "{couch_httpd_db, handle_request}",
             "enable_cors": "false",
-            "log_max_chunk_size": "1000000",
             "port": "5984",
             "secure_rewrites": "true",
-            "vhost_global_handlers": "_utils, _uuids, _session, _oauth, _users"
+            "vhost_global_handlers": "_utils, _uuids, _session, _users"
         }
 
 .. _api/config/section/key:
 
-``/_config/section/key``
-========================
+``/_node/node/_config/section/key``
+===================================
 
-.. http:get:: /_config/{section}/{key}
+.. http:get:: /_node/{node-name}/_config/{section}/{key}
     :synopsis: Returns a specific section/configuration value
 
     Gets a single configuration value from within a specific configuration
@@ -226,7 +235,7 @@ the various configuration values within a running CouchDB instance.
 
     .. code-block:: http
 
-        GET /_config/log/level HTTP/1.1
+        GET /_node/nonode@nohost/_config/log/level HTTP/1.1
         Accept: application/json
         Host: localhost:5984
 
@@ -248,7 +257,7 @@ the various configuration values within a running CouchDB instance.
         or numeric value, or an array or object. Some client environments may
         not parse simple strings or numeric values as valid JSON.
 
-.. http:put:: /_config/{section}/{key}
+.. http:put:: /_node/{node-name}/_config/{section}/{key}
     :synopsis: Sets the specified configuration value
 
     Updates a configuration value. The new value should be supplied in the
@@ -272,7 +281,7 @@ the various configuration values within a running CouchDB instance.
 
     .. code-block:: http
 
-        PUT /_config/log/level HTTP/1.1
+        PUT /_node/nonode@nohost/_config/log/level HTTP/1.1
         Accept: application/json
         Content-Length: 7
         Content-Type: application/json
@@ -293,7 +302,7 @@ the various configuration values within a running CouchDB instance.
 
         "debug"
 
-.. http:delete:: /_config/{section}/{key}
+.. http:delete:: /_node/{node-name}/_config/{section}/{key}
     :synopsis: Removes the current setting
 
     Deletes a configuration value. The returned JSON will be the value of the
@@ -313,7 +322,7 @@ the various configuration values within a running CouchDB instance.
 
     .. code-block:: http
 
-        DELETE /_config/log/level HTTP/1.1
+        DELETE /_node/nonode@nohost/_config/log/level HTTP/1.1
         Accept: application/json
         Host: localhost:5984
 
